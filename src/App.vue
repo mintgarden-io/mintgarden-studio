@@ -1,52 +1,164 @@
-<script setup lang="ts">
-// This starter template is using Vue 3 <script setup> SFCs
-// Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import HelloWorld from './components/HelloWorld.vue'
+<script setup>
+import { ref, watchEffect } from 'vue';
+import { CogIcon, HomeIcon, MenuIcon, XIcon, SparklesIcon } from '@heroicons/vue/outline';
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
+
+import { toSvg } from 'jdenticon';
+import { chiaState } from './state/chia';
+
+const navigation = [
+  { name: 'Dashboard', to: '/', icon: HomeIcon },
+  { name: 'Minting', to: '/minting', icon: SparklesIcon },
+];
+const secondaryNavigation = [{ name: 'Settings', to: '/settings', icon: CogIcon }];
+
+const fingerprints = ref([]);
+const loginInProgress = ref(false);
+const svgString = ref('');
+
+watchEffect(() => {
+  if (chiaState.activeFingerprint) {
+    svgString.value = toSvg(chiaState.activeFingerprint, 36);
+  }
+});
+// (async () => {
+//   fingerprints.value = await invoke("get_public_keys");
+//   chiaState.activeFingerprint = await invoke("get_logged_in_fingerprint");
+// })();
+
+// const login = async (fingerprint) => {
+//   loginInProgress.value = true;
+//   try {
+//     const result = await invoke("log_in", {
+//       fingerprint,
+//     });
+//     chiaState.activeFingerprint = result;
+//   } finally {
+//     loginInProgress.value = false;
+//   }
+// };
 </script>
 
 <template>
-  <div class="logo-box">
-    <img style="height:140px;" src="./assets/electron.png" >
-    <span/>
-    <img style="height:140px;" src="./assets/vite.svg" >
-    <span/>
-    <img style="height:140px;" src="./assets/vue.png" >
-  </div>
-  <HelloWorld msg="Hello Vue 3 + TypeScript + Vite" />
-  <div class="static-public">
-    Place static files into the <code>/public</code> folder
-    <img style="width:77px;" :src="'./node.png'" >
+  <div class="h-full flex">
+    <!-- Static sidebar for desktop -->
+    <div class="flex flex-shrink-0">
+      <div class="flex flex-col w-64">
+        <!-- Sidebar component, swap this element with another sidebar if you like -->
+        <div class="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-gray-100">
+          <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+            <div class="flex items-center flex-shrink-0 px-4">
+              <img class="h-8 w-auto" src="/mintgarden-logo.svg" alt="Workflow" />
+            </div>
+            <nav class="mt-5 flex-1" aria-label="Sidebar">
+              <div class="px-2 space-y-1">
+                <router-link
+                  custom
+                  v-slot="{ href, navigate, isActive }"
+                  v-for="item in navigation"
+                  :key="item.name"
+                  :to="item.to"
+                >
+                  <a
+                    :href="href"
+                    @click="navigate"
+                    :class="[
+                      isActive ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
+                    ]"
+                    :aria-current="isActive ? 'page' : undefined"
+                  >
+                    <component
+                      :is="item.icon"
+                      :class="[
+                        isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                        'mr-3 flex-shrink-0 h-6 w-6',
+                      ]"
+                      aria-hidden="true"
+                    />
+                    {{ item.name }}
+                  </a>
+                </router-link>
+              </div>
+              <hr class="border-t border-gray-200 my-5" aria-hidden="true" />
+              <div class="flex-1 px-2 space-y-1">
+                <router-link
+                  custom
+                  v-slot="{ href, navigate, isActive }"
+                  v-for="item in secondaryNavigation"
+                  :key="item.name"
+                  :to="item.to"
+                >
+                  <a
+                    :href="href"
+                    @click="navigate"
+                    :class="[
+                      isActive ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                      'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
+                    ]"
+                    :aria-current="isActive ? 'page' : undefined"
+                  >
+                    <component
+                      :is="item.icon"
+                      :class="[
+                        isActive ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500',
+                        'mr-3 flex-shrink-0 h-6 w-6',
+                      ]"
+                      aria-hidden="true"
+                    />
+                    {{ item.name }}
+                  </a>
+                </router-link>
+              </div>
+            </nav>
+          </div>
+          <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
+            <Menu as="div" class="relative inline-block text-left">
+              <div>
+                <MenuButton class="flex-shrink-0 w-full group block">
+                  <div v-if="loginInProgress" class="text-sm font-medium text-gray-700">Logging in...</div>
+                  <div v-else class="flex items-center">
+                    <div v-html="svgString"></div>
+                    <div class="ml-3">
+                      <p class="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        {{ chiaState.activeFingerprint }}
+                      </p>
+                      <p class="text-xs text-left font-medium text-gray-500 group-hover:text-gray-700">Change key</p>
+                    </div>
+                  </div>
+                </MenuButton>
+              </div>
+
+              <transition
+                enter-active-class="transition ease-out duration-100"
+                enter-from-class="transform opacity-0 scale-95"
+                enter-to-class="transform opacity-100 scale-100"
+                leave-active-class="transition ease-in duration-75"
+                leave-from-class="transform opacity-100 scale-100"
+                leave-to-class="transform opacity-0 scale-95"
+              >
+                <MenuItems
+                  class="origin-top-left bottom-full mb-2 absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
+                >
+                  <div class="py-1">
+                    <MenuItem v-for="fingerprint in fingerprints" v-slot="{ active }">
+                      <a
+                        href="#"
+                        @click.prevent="login(fingerprint)"
+                        :class="[active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block px-4 py-2 text-sm']"
+                        >{{ fingerprint }}</a
+                      >
+                    </MenuItem>
+                  </div>
+                </MenuItems>
+              </transition>
+            </Menu>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex-1 overflow-scroll min-w-min">
+      <router-view></router-view>
+    </div>
   </div>
 </template>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-
-.logo-box {
-  display: flex;
-  width: 100%;
-  justify-content: center;
-}
-.logo-box span {
-  width: 74px;
-}
-.static-public {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.static-public code {
-  background-color: #eee;
-  padding: 2px 4px;
-  margin: 0 4px;
-  border-radius: 4px;
-  color: #304455;
-}
-</style>
