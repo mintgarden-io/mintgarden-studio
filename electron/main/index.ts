@@ -34,7 +34,7 @@ async function createWindow() {
   win = new BrowserWindow({
     title: 'Main window',
     height: 1000,
-    width: 1280,
+    width: 1440,
     webPreferences: {
       preload: splash,
       nodeIntegration: true,
@@ -247,7 +247,7 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
       meta_uris: args.metadataUris,
       meta_hash: args.metadataHash,
       did_id: args.did.didId,
-      royalty_percentage: args.royaltyPercentage,
+      royalty_percentage: args.royaltyPercentage * 100,
     });
     console.log(response);
     console.log(response.spend_bundle?.coin_solutions);
