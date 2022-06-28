@@ -1,33 +1,50 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from '@headlessui/vue';
-import { CheckIcon, SelectorIcon } from '@heroicons/vue/solid';
+import { CheckIcon, SelectorIcon, XCircleIcon } from '@heroicons/vue/solid';
 import { toSvg } from 'jdenticon';
 import DropZone from '../components/DropZone.vue';
 import * as fs from 'fs';
 import { File } from 'nft.storage';
 import { IpcService } from '../helpers/ipc-service';
 import { NftStorageUploader } from '../helpers/nft-storage';
+import { chiaState } from '../state/chia';
+import { shell } from 'electron';
+import { add_rate_limited_funds } from 'chia-agent/api/rpc';
 
 const ipc = new IpcService();
 
+const initialMetadata = { name: '', description: '', collection: { id: '', name: '' } };
+
 const currentFile = ref<any>(undefined);
-const metadata = reactive({ name: '', description: '' });
+const metadata = reactive(initialMetadata);
+const onChainMetadata = reactive({ royaltyPercentage: 0, targetAddress: undefined, royaltyAddress: undefined });
+const fee = ref(0);
 
 const isHovering = ref(false);
 const dids = ref([]);
 const selected = ref<any>(undefined);
-const progress = ref<undefined | 'uploading' | 'minting' | 'done'>(undefined);
+type MintingStage = 'preparing' | 'uploading' | 'minting' | 'done';
+const progress = ref<undefined | MintingStage | 'error'>(undefined);
+const someError = ref<{ stage: MintingStage; error: any } | undefined>(undefined);
+const nft = ref<{ encodedId: string } | undefined>(undefined);
 
 const getDids = async () => {
   const response = await ipc.send<any>('get_dids');
+  console.log(response);
   for (const did of response.dids) {
-    did.avatar = toSvg(did.id, 24);
+    did.avatar = toSvg(did.didId, 24);
   }
   dids.value = response.dids;
   selected.value = dids.value[0];
 };
 getDids();
+
+watch(chiaState, (value, oldValue) => {
+  if (value.syncStatus && oldValue.syncStatus && !oldValue.syncStatus.synced && value.syncStatus.synced) {
+    getDids();
+  }
+});
 
 const drop = async (e: any) => {
   const file = e.dataTransfer.files[0];
@@ -54,26 +71,56 @@ const loadFile = (file: File) => {
 const reset = () => {
   currentFile.value = undefined;
   progress.value = undefined;
+  someError.value = undefined;
+  Object.assign(metadata, initialMetadata);
+  nft.value = undefined;
 };
 
 const uploadAndMint = async (e: any) => {
   e.preventDefault();
-  const data = await uploadToNftStorage();
-  await mintNft(data);
+
+  try {
+    nft.value = undefined;
+    progress.value = 'preparing';
+    someError.value = undefined;
+
+    if (!currentFile.value) {
+      someError.value = { stage: 'preparing', error: new Error('No image selected.') };
+      return;
+    }
+
+    if (!chiaState.syncStatus?.synced) {
+      someError.value = { stage: 'preparing', error: new Error('Wallet is not synced.') };
+      return;
+    }
+
+    const urisAndHashes = await uploadToNftStorage();
+    try {
+      nft.value = await mintNft(urisAndHashes);
+    } catch (mintingError) {
+      someError.value = { stage: 'minting', error: mintingError?.error || mintingError };
+    }
+  } catch (uploadError) {
+    someError.value = { stage: 'uploading', error: uploadError };
+  }
 };
 
 const uploadToNftStorage = async () => {
   progress.value = 'uploading';
-  metadata.description = metadata.description.trim();
+  const metadataToUpload: any = { ...metadata, description: metadata.description.trim() };
+  if (!metadata.collection.id) {
+    metadataToUpload.collection = undefined;
+  }
 
   const nftStorageUploader = new NftStorageUploader();
-  return await nftStorageUploader.upload(currentFile.value, metadata);
+  return await nftStorageUploader.upload(currentFile.value, metadataToUpload);
 };
 
-const mintNft = async (data: any) => {
+const mintNft = async (urisAndHashes: any): any => {
   progress.value = 'minting';
-  await ipc.send('mint_nft', { ...data, did: selected?.id });
+  const nft = await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selected.value } });
   progress.value = 'done';
+  return nft;
 };
 
 const getProgressWidth = () => {
@@ -107,12 +154,12 @@ const getProgressWidth = () => {
                     class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   >
                     <span v-if="selected" class="flex items-center">
-                      <span v-html="selected.avatar" />
+                      <span v-if="selected.avatar" v-html="selected.avatar" />
                       <span class="ml-3 block truncate">{{ selected.name }}</span>
                     </span>
                     <span v-else class="flex items-center">
                       <img src="" alt="" class="flex-shrink-0 h-6 w-6 rounded-full" />
-                      <span class="ml-3 block truncate">Create new DID...</span>
+                      <span class="ml-3 block truncate">No DID</span>
                     </span>
                     <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                       <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -190,14 +237,42 @@ const getProgressWidth = () => {
               </div>
             </div>
 
+            <fieldset class="mt-6 bg-white">
+              <legend class="block text-sm font-medium text-gray-700">Collection (optional)</legend>
+              <div class="mt-1 rounded-md shadow-sm -space-y-px">
+                <div>
+                  <label for="collectionId" class="sr-only">Collection ID</label>
+                  <input
+                    type="text"
+                    v-model="metadata.collection.id"
+                    name="collectionId"
+                    id="collectionId"
+                    class="focus:ring-emerald-500 focus:border-emerald-500 relative block w-full rounded-none rounded-t-md bg-transparent focus:z-10 sm:text-sm border-gray-300"
+                    placeholder="ID"
+                  />
+                </div>
+                <div>
+                  <label for="collectionName" class="sr-only">Collection Name</label>
+                  <input
+                    type="text"
+                    v-model="metadata.collection.name"
+                    name="collectionName"
+                    id="collectionName"
+                    class="focus:ring-emerald-500 focus:border-emerald-500 relative block w-full rounded-none rounded-b-md bg-transparent focus:z-10 sm:text-sm border-gray-300"
+                    placeholder="Name"
+                  />
+                </div>
+              </div>
+            </fieldset>
+
             <div>
               <label for="name" class="block text-sm font-medium text-gray-700"> Royalty percentage </label>
               <div class="mt-1">
                 <input
                   type="number"
-                  v-model="metadata.royalty_percentage"
-                  name="royalty_percentage"
-                  id="royalty_percentage"
+                  v-model="onChainMetadata.royaltyPercentage"
+                  name="royaltyPercentage"
+                  id="royaltyPercentage"
                   min="0"
                   max="100"
                   class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
@@ -236,11 +311,11 @@ const getProgressWidth = () => {
         </button>
         <button
           type="submit"
-          :disabled="progress"
+          :disabled="progress && progress !== 'done' && !someError"
           class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
         >
           <svg
-            v-if="progress && progress !== 'done'"
+            v-if="progress && progress !== 'done' && !someError"
             class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -260,19 +335,63 @@ const getProgressWidth = () => {
     <div v-if="progress">
       <h4 class="sr-only">Status</h4>
       <p class="text-sm font-medium text-gray-900">
-        <span v-if="progress !== 'done'">Minting your NFT...</span><span v-else>Your NFT has been submitted!</span>
+        <span v-if="progress !== 'done'">Minting your NFT...</span><span v-else>Your NFT has been minted!</span>
+      </p>
+      <p v-if="progress === 'done'" class="mt-1 text-sm text-gray-600">
+        It can take a minute to be added to the blockchain. <br />You can find it here:
+        <a
+          class="font-semibold text-emerald-600"
+          href="#"
+          @click.prevent="shell.openExternal(`https://testnet.mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
+          >https://testnet.mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
+        >
       </p>
       <div class="mt-6" aria-hidden="true">
         <div class="bg-gray-200 rounded-full overflow-hidden">
-          <div class="h-2 bg-emerald-600 rounded-full" :style="{ width: getProgressWidth() }" />
+          <div
+            class="h-2 rounded-full"
+            :class="someError ? 'bg-red-600' : 'bg-emerald-600'"
+            :style="{ width: getProgressWidth() }"
+          />
         </div>
         <div class="hidden sm:grid grid-cols-4 text-sm font-medium text-gray-600 mt-6">
-          <div class="text-emerald-600">Preparing Metadata</div>
-          <div class="text-center text-emerald-600">Uploading files</div>
-          <div class="text-center" :class="progress === 'minting' || progress === 'done' ? 'text-emerald-600' : ''">
+          <div :class="someError?.stage === 'preparing' ? 'text-red-600' : 'text-emerald-600'">Preparing Metadata</div>
+          <div
+            class="text-center"
+            :class="
+              someError?.stage === 'uploading' ? 'text-red-600' : progress !== 'preparing' ? 'text-emerald-600' : ''
+            "
+          >
+            Uploading files
+          </div>
+          <div
+            class="text-center"
+            :class="
+              someError?.stage === 'minting'
+                ? 'text-red-600'
+                : progress === 'minting' || progress === 'done'
+                ? 'text-emerald-600'
+                : ''
+            "
+          >
             Minting NFT
           </div>
           <div class="text-right" :class="progress === 'done' ? 'text-emerald-600' : ''">Finished</div>
+        </div>
+      </div>
+      <div v-if="someError" class="mt-6">
+        <div class="rounded-md bg-red-50 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <XCircleIcon class="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-red-800">Failed to mint your NFT</h3>
+              <div class="mt-2 text-sm text-red-700">
+                {{ someError.error }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

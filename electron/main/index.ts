@@ -1,7 +1,16 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { release } from 'os';
 import { join } from 'path';
-import { RPCAgent } from 'chia-agent';
+import { chiaRoot, getConfig, getConnectionInfoFromConfig, RPCAgent, setLogLevel, TConfig } from 'chia-agent';
+import Store from 'electron-store';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Coin, SmartCoin } from 'greenwebjs';
+import { bech32m } from 'bech32';
+
+setLogLevel('debug');
+
+const store = new Store<{ CHIA_ROOT: string }>({ defaults: { CHIA_ROOT: chiaRoot } });
 
 // Disable GPU Acceleration for Windows 7
 if (release().startsWith('6.1')) app.disableHardwareAcceleration();
@@ -24,7 +33,7 @@ const url = `http://${process.env['VITE_DEV_SERVER_HOST']}:${process.env['VITE_D
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Main window',
-    height: 800,
+    height: 1000,
     width: 1280,
     webPreferences: {
       preload: splash,
@@ -94,11 +103,81 @@ ipcMain.handle('open-win', (event, arg) => {
   }
 });
 
-ipcMain.on('get_public_keys', async (event, { responseChannel }) => {
-  const agent = new RPCAgent({
+const getChiaAgent = () => {
+  const chiaRoot = store.get('CHIA_ROOT');
+
+  const config = getConfig(`${chiaRoot}/config/config.yaml`);
+  const { hostname, port } = getConnectionInfoFromConfig('wallet', config);
+  const certs = loadCertFilesFromConfig(chiaRoot, config);
+
+  return new RPCAgent({
     service: 'wallet',
+    protocol: 'https',
+    host: hostname,
+    port: port,
+    ca_cert: certs.caCert,
+    client_cert: certs.clientCert,
+    client_key: certs.clientKey,
   });
+};
+
+function loadCertFilesFromConfig(chiaRoot: string, config: TConfig) {
+  const resolveFromChiaRoot = (pathFromChiaRoot: string[]) => {
+    return path.resolve(chiaRoot, ...pathFromChiaRoot);
+  };
+
+  const clientCertPath = resolveFromChiaRoot([config['/daemon_ssl/private_crt']] as string[]);
+  const clientKeyPath = resolveFromChiaRoot([config['/daemon_ssl/private_key']] as string[]);
+  const caCertPath = resolveFromChiaRoot([config['/private_ssl_ca/crt']] as string[]);
+  const getCertOrKey = (path: string) => {
+    if (!fs.existsSync(path)) {
+      throw new Error(`crt/key Not Found at ${path}`);
+    }
+    return fs.readFileSync(path);
+  };
+
+  const clientCert = getCertOrKey(clientCertPath);
+  const clientKey = getCertOrKey(clientKeyPath);
+  const caCert = getCertOrKey(caCertPath);
+
+  return { clientCert, clientKey, caCert };
+}
+
+ipcMain.on('connect', async (event, { responseChannel, ...args }) => {
   try {
+    const agent = getChiaAgent();
+    await agent.sendMessage<any>('wallet', 'healthz');
+    event.sender.send(responseChannel, { success: true });
+  } catch (error) {
+    console.log(error);
+    event.sender.send(responseChannel, { error, chiaRoot: store.get('CHIA_ROOT') });
+  }
+});
+
+ipcMain.on('get_sync_status', async (event, { responseChannel, ...args }) => {
+  try {
+    const agent = getChiaAgent();
+    const response = await agent.sendMessage<any>('wallet', 'get_sync_status');
+    event.sender.send(responseChannel, response);
+  } catch (error) {
+    console.log(error);
+    event.sender.send(responseChannel, { error });
+  }
+});
+
+ipcMain.on('set_chia_root', async (event, { responseChannel, ...args }) => {
+  store.set('CHIA_ROOT', args.chiaRoot);
+  event.sender.send(responseChannel, {});
+});
+
+ipcMain.on('get_chia_root', async (event, { responseChannel }) => {
+  const chiaRoot = store.get('CHIA_ROOT');
+  event.sender.send(responseChannel, { chiaRoot });
+});
+
+ipcMain.on('get_public_keys', async (event, { responseChannel }) => {
+  try {
+    const agent = getChiaAgent();
     const { public_key_fingerprints } = await agent.sendMessage<any>('wallet', 'get_public_keys');
     const { fingerprint } = await agent.sendMessage<any>('wallet', 'get_logged_in_fingerprint');
     event.sender.send(responseChannel, { fingerprints: public_key_fingerprints, fingerprint });
@@ -108,10 +187,8 @@ ipcMain.on('get_public_keys', async (event, { responseChannel }) => {
 });
 
 ipcMain.on('log_in', async (event, { responseChannel, ...args }) => {
-  const agent = new RPCAgent({
-    service: 'wallet',
-  });
   try {
+    const agent = getChiaAgent();
     const response = await agent.sendMessage<any>('wallet', 'log_in', {
       fingerprint: args.fingerprint,
     });
@@ -122,10 +199,8 @@ ipcMain.on('log_in', async (event, { responseChannel, ...args }) => {
 });
 
 ipcMain.on('get_wallet_balance', async (event, { responseChannel }) => {
-  const agent = new RPCAgent({
-    service: 'wallet',
-  });
   try {
+    const agent = getChiaAgent();
     const response = await agent.sendMessage<any>('wallet', 'get_wallet_balance', {
       wallet_id: 1,
     });
@@ -136,11 +211,9 @@ ipcMain.on('get_wallet_balance', async (event, { responseChannel }) => {
 });
 
 ipcMain.on('get_dids', async (event, { responseChannel }) => {
-  const agent = new RPCAgent({
-    service: 'wallet',
-  });
   const dids = [];
   try {
+    const agent = getChiaAgent();
     const response = await agent.sendMessage<any>('wallet', 'get_wallets', {
       type: 8,
     });
@@ -148,7 +221,7 @@ ipcMain.on('get_dids', async (event, { responseChannel }) => {
       const response = await agent.sendMessage<any>('wallet', 'did_get_did', {
         wallet_id: wallet.id,
       });
-      dids.push({ name: wallet.name, id: response.my_did });
+      dids.push({ name: wallet.name, didId: response.my_did, coinId: response.coin_id });
     }
     event.sender.send(responseChannel, { dids });
   } catch (error) {
@@ -157,35 +230,56 @@ ipcMain.on('get_dids', async (event, { responseChannel }) => {
 });
 
 ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
-  const agent = new RPCAgent({
-    service: 'wallet',
-  });
   try {
+    const agent = getChiaAgent();
     const did = args.did;
 
-    const { wallets } = await agent.sendMessage<any>('wallet', 'get_wallets', {
-      type: 10,
+    const walletResponse = await agent.sendMessage<any>('wallet', 'create_new_wallet', {
+      wallet_type: 'nft_wallet',
+      did_id: did.didId,
     });
-    let nft_did_wallet = wallets.find((wallet: any) => wallet.data && JSON.parse(wallet.data)?.did_id === did);
-    if (!nft_did_wallet) {
-      const response = await agent.sendMessage<any>('wallet', 'create_new_wallet', {
-        wallet_type: 'nft_wallet',
-        did_id: did,
-      });
-      nft_did_wallet = { id: response.wallet_id };
-    }
+    console.log(walletResponse);
 
     const response = await agent.sendMessage<any>('wallet', 'nft_mint_nft', {
-      wallet_id: nft_did_wallet.wallet_id,
-      // uris: args.dataUris,
+      wallet_id: walletResponse.wallet_id,
+      uris: args.dataUris,
       hash: args.dataHash,
       meta_uris: args.metadataUris,
       meta_hash: args.metadataHash,
-      did_id: args.did,
+      did_id: args.did.didId,
+      royalty_percentage: args.royaltyPercentage,
     });
-    event.sender.send(responseChannel, response);
+    console.log(response.spend_bundle?.coin_solutions);
+    const launcherCoinRecord = response.spend_bundle?.coin_solutions.find(
+      (solution: any) =>
+        solution.coin.puzzle_hash === '0xeff07522495060c066f66f32acc2a77e3a3e737aca8baea4d1a64ea4cdc13da9'
+    );
+    console.log(launcherCoinRecord);
+    let encodedId = undefined;
+    if (launcherCoinRecord) {
+      encodedId = getEncodedId(launcherCoinRecord);
+      console.log(encodedId);
+    }
+
+    event.sender.send(responseChannel, encodedId ? { encodedId } : undefined);
   } catch (error) {
-    event.sender.send(responseChannel, { error });
     console.log('Failed to mint NFT', error);
+    event.sender.send(responseChannel, { error });
   }
 });
+
+function getEncodedId(launcherCoinRecord: any) {
+  const smartLauncherCoin = new SmartCoin({
+    parentCoinInfo: launcherCoinRecord.coin.parent_coin_info,
+    puzzleHash: launcherCoinRecord.coin.puzzle_hash,
+    amount: launcherCoinRecord.coin.amount,
+  });
+  console.log(smartLauncherCoin);
+  let id = smartLauncherCoin.getId();
+  console.log(id);
+  if (id) {
+    const idBuffer: Buffer = Buffer.from(id, 'hex');
+
+    return bech32m.encode('nft', bech32m.toWords(idBuffer));
+  }
+}

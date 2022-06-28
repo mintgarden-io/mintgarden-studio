@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue';
-import { SparklesIcon } from '@heroicons/vue/outline';
+import { CogIcon, SparklesIcon } from '@heroicons/vue/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
-import { ipcRenderer } from 'electron';
 import { toSvg } from 'jdenticon';
 import { chiaState } from './state/chia';
 import { IpcService } from './helpers/ipc-service';
@@ -11,12 +10,10 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const navigation = [
-  { name: 'Single Mint', to: '/', icon: SparklesIcon },
+  { name: 'Single Mint', to: '/minting', icon: SparklesIcon },
   // { name: 'Bulk Mint (soon)', to: '/bulk', icon: CollectionIcon },
 ];
-const secondaryNavigation = [
-  // { name: 'Settings', to: '/settings', icon: CogIcon }
-];
+const secondaryNavigation = [{ name: 'Settings', to: '/settings', icon: CogIcon }];
 
 const fingerprints = ref<string[]>([]);
 const loginInProgress = ref(true);
@@ -30,12 +27,19 @@ watchEffect(() => {
 });
 
 const ipc = new IpcService();
+
+let syncPollInterval = undefined;
 const init = async () => {
   try {
+    chiaState.syncStatus = await ipc.send('get_sync_status');
+
+    syncPollInterval = setInterval(async () => {
+      chiaState.syncStatus = await ipc.send('get_sync_status');
+    }, 5000);
+
     const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
     fingerprints.value = response.fingerprints;
     chiaState.activeFingerprint = response.fingerprint;
-    await router.push('/minting');
   } catch (e) {
     loginError.value = e;
   }
@@ -49,6 +53,10 @@ const login = async (fingerprint: string) => {
     fingerprint,
   });
   chiaState.activeFingerprint = response.fingerprint;
+  chiaState.syncStatus = await ipc.send('get_sync_status');
+  setTimeout(async () => {
+    chiaState.syncStatus = await ipc.send('get_sync_status');
+  }, 1000);
   loginInProgress.value = false;
 };
 </script>
@@ -56,7 +64,7 @@ const login = async (fingerprint: string) => {
 <template>
   <div class="h-full flex">
     <!-- Static sidebar for desktop -->
-    <div class="flex flex-shrink-0" v-if="!loginError">
+    <div class="flex flex-shrink-0">
       <div class="flex flex-col w-64">
         <!-- Sidebar component, swap this element with another sidebar if you like -->
         <div class="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-gray-100">
@@ -128,6 +136,25 @@ const login = async (fingerprint: string) => {
           </div>
           <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
             <Menu as="div" class="relative inline-block text-left">
+              <div v-if="chiaState.syncStatus" class="flex items-center mb-4 gap-3">
+                <div class="flex h-9 w-9 items-center justify-center">
+                  <span class="flex h-3 w-3">
+                    <span
+                      class="relative inline-flex rounded-full h-3 w-3"
+                      :class="
+                        chiaState.syncStatus.synced
+                          ? 'bg-emerald-500'
+                          : chiaState.syncStatus.syncing
+                          ? 'bg-orange-500'
+                          : 'bg-red-500'
+                      "
+                    ></span>
+                  </span>
+                </div>
+                <span class="text-gray-900 text-sm">
+                  {{ chiaState.syncStatus.synced ? 'Synced' : chiaState.syncStatus.syncing ? 'Syncing' : 'Not synced' }}
+                </span>
+              </div>
               <div>
                 <MenuButton class="flex-shrink-0 w-full group block">
                   <div v-if="loginInProgress" class="text-sm font-medium text-gray-700">Logging in...</div>
