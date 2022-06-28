@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue';
+import { onMounted, ref, watchEffect } from 'vue';
 import { CogIcon, SparklesIcon } from '@heroicons/vue/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { toSvg } from 'jdenticon';
@@ -8,6 +8,9 @@ import { IpcService } from './helpers/ipc-service';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+onMounted(() => {
+  router.push('/');
+});
 
 const navigation = [
   { name: 'Single Mint', to: '/minting', icon: SparklesIcon },
