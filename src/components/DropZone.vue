@@ -1,34 +1,28 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { PhotographIcon } from '@heroicons/vue/outline';
 
 const active = ref(false);
-const toggleActive = () => {
-  active.value = !active.value;
-};
 </script>
 
 <template>
-  <div
+  <label
+    for="dropzoneFile"
     @dragenter.prevent="active = true"
     @dragleave.prevent="active = false"
     @dragover.prevent
-    @drop.prevent="active = true"
-    :class="{ 'active-dropzone': active }"
-    class="max-w-full px-16 py-4 flex flex-col justify-center items-center gap-1 border-dotted border-2 border-black"
+    @drop.prevent="active = false"
+    :class="[active ? 'border-gray-400' : 'border-gray-300']"
+    class="cursor-pointer relative block w-full border-2 border-dashed rounded-lg p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
   >
-    <span>Drop file</span>
-    <span>OR</span>
-    <button class="btn btn-ghost bg-[#E9B906] hover:bg-[#D9AB07]" for="dropzoneFile">Select file</button>
-  </div>
+    <PhotographIcon
+      :class="[active ? 'text-gray-500' : 'text-gray-400']"
+      class="pointer-events-none mx-auto h-12 w-12"
+    />
+    <span class="pointer-events-none mt-2 block text-sm font-medium text-gray-600"
+      >Drop an image, or click to select a file</span
+    >
+    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+    <input type="file" id="dropzoneFile" class="hidden" accept="image/*" />
+  </label>
 </template>
-
-<style scoped>
-.active-dropzone {
-  border-color: #e9d5b9;
-  background-color: #d9ab07;
-}
-.active-dropzone label {
-  border-color: #e9d5b9;
-  background-color: #e9d5b9;
-}
-</style>

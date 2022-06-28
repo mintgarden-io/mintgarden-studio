@@ -1,9 +1,9 @@
 {
-  "name": "electron-vue-vite",
-  "version": "2.0.0",
+  "name": "mintgarden-studio",
+  "version": "0.1.0",
   "main": "dist/electron/main/index.js",
-  "description": "Really simple Electron + Vue + Vite boilerplate.",
-  "author": "草鞋没号 <308487730@qq.com>",
+  "description": "Mint Chia NFTs with ease.",
+  "author": "Andreas Greimel <andreas@mintgarden.io>",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -22,6 +22,7 @@
     "electron": "^19.0.3",
     "electron-builder": "^23.0.3",
     "jdenticon": "^3.1.1",
+    "nft.storage": "^6.3.0",
     "postcss": "^8.4.14",
     "prettier": "^2.7.1",
     "tailwindcss": "^3.1.4",
@@ -43,5 +44,8 @@
     "vite",
     "vue3",
     "vue"
-  ]
+  ],
+  "dependencies": {
+    "chia-agent": "^6.0.0"
+  }
 }

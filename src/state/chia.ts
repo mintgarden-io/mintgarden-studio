@@ -1,3 +1,3 @@
-import { reactive } from "vue";
+import { reactive } from 'vue';
 
-export const chiaState = reactive({activeFingerprint: undefined});
+export const chiaState = reactive<{ activeFingerprint: string | undefined }>({ activeFingerprint: undefined });

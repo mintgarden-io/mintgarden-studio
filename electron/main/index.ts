@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { release } from 'os';
 import { join } from 'path';
+import { RPCAgent } from 'chia-agent';
 
 // Disable GPU Acceleration for Windows 7
 if (release().startsWith('6.1')) app.disableHardwareAcceleration();
@@ -12,7 +13,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
-process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+//process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 
 let win: BrowserWindow | null = null;
 // Here, you can also use other preload
@@ -90,5 +91,101 @@ ipcMain.handle('open-win', (event, arg) => {
   } else {
     childWindow.loadURL(`${url}/#${arg}`);
     // childWindow.webContents.openDevTools({ mode: "undocked", activate: true })
+  }
+});
+
+ipcMain.on('get_public_keys', async (event, { responseChannel }) => {
+  const agent = new RPCAgent({
+    service: 'wallet',
+  });
+  try {
+    const { public_key_fingerprints } = await agent.sendMessage<any>('wallet', 'get_public_keys');
+    const { fingerprint } = await agent.sendMessage<any>('wallet', 'get_logged_in_fingerprint');
+    event.sender.send(responseChannel, { fingerprints: public_key_fingerprints, fingerprint });
+  } catch (error) {
+    event.sender.send(responseChannel, { error });
+  }
+});
+
+ipcMain.on('log_in', async (event, { responseChannel, ...args }) => {
+  const agent = new RPCAgent({
+    service: 'wallet',
+  });
+  try {
+    const response = await agent.sendMessage<any>('wallet', 'log_in', {
+      fingerprint: args.fingerprint,
+    });
+    event.sender.send(responseChannel, response);
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+ipcMain.on('get_wallet_balance', async (event, { responseChannel }) => {
+  const agent = new RPCAgent({
+    service: 'wallet',
+  });
+  try {
+    const response = await agent.sendMessage<any>('wallet', 'get_wallet_balance', {
+      wallet_id: 1,
+    });
+    event.sender.send(responseChannel, response);
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+ipcMain.on('get_dids', async (event, { responseChannel }) => {
+  const agent = new RPCAgent({
+    service: 'wallet',
+  });
+  const dids = [];
+  try {
+    const response = await agent.sendMessage<any>('wallet', 'get_wallets', {
+      type: 8,
+    });
+    for (const wallet of response.wallets) {
+      const response = await agent.sendMessage<any>('wallet', 'did_get_did', {
+        wallet_id: wallet.id,
+      });
+      dids.push({ name: wallet.name, id: response.my_did });
+    }
+    event.sender.send(responseChannel, { dids });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
+  const agent = new RPCAgent({
+    service: 'wallet',
+  });
+  try {
+    const did = args.did;
+
+    const { wallets } = await agent.sendMessage<any>('wallet', 'get_wallets', {
+      type: 10,
+    });
+    let nft_did_wallet = wallets.find((wallet: any) => wallet.data && JSON.parse(wallet.data)?.did_id === did);
+    if (!nft_did_wallet) {
+      const response = await agent.sendMessage<any>('wallet', 'create_new_wallet', {
+        wallet_type: 'nft_wallet',
+        did_id: did,
+      });
+      nft_did_wallet = { id: response.wallet_id };
+    }
+
+    const response = await agent.sendMessage<any>('wallet', 'nft_mint_nft', {
+      wallet_id: nft_did_wallet.wallet_id,
+      // uris: args.dataUris,
+      hash: args.dataHash,
+      meta_uris: args.metadataUris,
+      meta_hash: args.metadataHash,
+      did_id: args.did,
+    });
+    event.sender.send(responseChannel, response);
+  } catch (error) {
+    event.sender.send(responseChannel, { error });
+    console.log('Failed to mint NFT', error);
   }
 });

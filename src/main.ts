@@ -1,15 +1,15 @@
 import { createApp } from 'vue';
 import * as VueRouter from 'vue-router';
 import App from './App.vue';
-import Dashboard from './pages/Dashboard.vue';
+import Setup from './pages/Setup.vue';
 import Minting from './pages/Minting.vue';
-import Settings from './pages/Settings.vue';
+import BulkMinting from './pages/BulkMinting.vue';
 import './index.css';
 
 const routes = [
-  { path: '/', component: Dashboard },
+  { path: '/', component: Setup },
   { path: '/minting', component: Minting },
-  { path: '/settings', component: Settings },
+  { path: '/bulk-minting', component: BulkMinting },
 ];
 
 const router = VueRouter.createRouter({

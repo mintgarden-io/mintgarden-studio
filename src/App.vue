@@ -1,19 +1,26 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watchEffect } from 'vue';
-import { CogIcon, HomeIcon, MenuIcon, XIcon, SparklesIcon } from '@heroicons/vue/outline';
+import { SparklesIcon } from '@heroicons/vue/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
-
+import { ipcRenderer } from 'electron';
 import { toSvg } from 'jdenticon';
 import { chiaState } from './state/chia';
+import { IpcService } from './helpers/ipc-service';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const navigation = [
-  { name: 'Dashboard', to: '/', icon: HomeIcon },
-  { name: 'Minting', to: '/minting', icon: SparklesIcon },
+  { name: 'Single Mint', to: '/', icon: SparklesIcon },
+  // { name: 'Bulk Mint (soon)', to: '/bulk', icon: CollectionIcon },
 ];
-const secondaryNavigation = [{ name: 'Settings', to: '/settings', icon: CogIcon }];
+const secondaryNavigation = [
+  // { name: 'Settings', to: '/settings', icon: CogIcon }
+];
 
-const fingerprints = ref([]);
-const loginInProgress = ref(false);
+const fingerprints = ref<string[]>([]);
+const loginInProgress = ref(true);
+const loginError = ref<any>(undefined);
 const svgString = ref('');
 
 watchEffect(() => {
@@ -21,28 +28,35 @@ watchEffect(() => {
     svgString.value = toSvg(chiaState.activeFingerprint, 36);
   }
 });
-// (async () => {
-//   fingerprints.value = await invoke("get_public_keys");
-//   chiaState.activeFingerprint = await invoke("get_logged_in_fingerprint");
-// })();
 
-// const login = async (fingerprint) => {
-//   loginInProgress.value = true;
-//   try {
-//     const result = await invoke("log_in", {
-//       fingerprint,
-//     });
-//     chiaState.activeFingerprint = result;
-//   } finally {
-//     loginInProgress.value = false;
-//   }
-// };
+const ipc = new IpcService();
+const init = async () => {
+  try {
+    const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
+    fingerprints.value = response.fingerprints;
+    chiaState.activeFingerprint = response.fingerprint;
+    await router.push('/minting');
+  } catch (e) {
+    loginError.value = e;
+  }
+  loginInProgress.value = false;
+};
+init();
+
+const login = async (fingerprint: string) => {
+  loginInProgress.value = true;
+  const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('log_in', {
+    fingerprint,
+  });
+  chiaState.activeFingerprint = response.fingerprint;
+  loginInProgress.value = false;
+};
 </script>
 
 <template>
   <div class="h-full flex">
     <!-- Static sidebar for desktop -->
-    <div class="flex flex-shrink-0">
+    <div class="flex flex-shrink-0" v-if="!loginError">
       <div class="flex flex-col w-64">
         <!-- Sidebar component, swap this element with another sidebar if you like -->
         <div class="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-gray-100">

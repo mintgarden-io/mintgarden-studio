@@ -2,7 +2,8 @@
  * @see https://www.electron.build/configuration/configuration
  */
 {
-  "appId": "YourAppID",
+  "appId": "io.mintgarden.studiom",
+  productName: "MintGarden Studio",
   "asar": true,
   "directories": {
     "output": "release/${version}"

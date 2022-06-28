@@ -1,99 +1,121 @@
-<script setup>
-import { onBeforeUnmount, ref } from "vue";
-import {
-  Listbox,
-  ListboxButton,
-  ListboxLabel,
-  ListboxOption,
-  ListboxOptions,
-} from "@headlessui/vue";
-import { CheckIcon, SelectorIcon } from "@heroicons/vue/solid";
+<script setup lang="ts">
+import { reactive, ref } from 'vue';
+import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from '@headlessui/vue';
+import { CheckIcon, SelectorIcon } from '@heroicons/vue/solid';
+import { toSvg } from 'jdenticon';
+import DropZone from '../components/DropZone.vue';
+import * as fs from 'fs';
+import { File } from 'nft.storage';
+import { IpcService } from '../helpers/ipc-service';
+import { NftStorageUploader } from '../helpers/nft-storage';
 
-const fileContent = ref(undefined);
+const ipc = new IpcService();
+
+const currentFile = ref<any>(undefined);
+const metadata = reactive({ name: '', description: '' });
+
 const isHovering = ref(false);
 const dids = ref([]);
-const selected = ref(undefined);
+const selected = ref<any>(undefined);
+const progress = ref<undefined | 'uploading' | 'minting' | 'done'>(undefined);
 
-// const loadFile = async (path) => {
-//   const blob = await fs.readBinaryFile(path);
-//   fileContent.value = URL.createObjectURL(new Blob([blob]));
-// };
-// const fileDropHover = event.listen("tauri://file-drop-hover", (e) => {
-//   isHovering.value = true;
-// });
-//
-// const fileDrop = event.listen("tauri://file-drop", (e) => {
-//   isHovering.value = false;
-//   if (e.payload.length > 0) {
-//     loadFile(e.payload[0]);
-//   }
-// });
-//
-// const fileDropCancelled = event.listen("tauri://file-drop-cancelled", () => {
-//   isHovering.value = false;
-// });
-//
-// onBeforeUnmount(async () => {
-//   fileDropHover.then((unlisten) => unlisten());
-//   fileDrop.then((unlisten) => unlisten());
-//   fileDropCancelled.then((unlisten) => unlisten());
-// });
-//
-// const open = async () => {
-//   const path = await dialog.open({
-//     filters: [{ name: "image", extensions: ["png", "jpg", "jpeg", "gif"] }],
-//   });
-//   loadFile(path);
-// };
+const getDids = async () => {
+  const response = await ipc.send<any>('get_dids');
+  for (const did of response.dids) {
+    did.avatar = toSvg(did.id, 24);
+  }
+  dids.value = response.dids;
+  selected.value = dids.value[0];
+};
+getDids();
+
+const drop = async (e: any) => {
+  const file = e.dataTransfer.files[0];
+  loadFile(file.path);
+};
+const selectedFile = async () => {
+  const file = (document.querySelector('#dropzoneFile') as any).files[0];
+  loadFile(file);
+};
+
+const loadFile = (file: File) => {
+  // TODO ensure that file.size is not too large?
+
+  const blob = fs.readFileSync(file.path);
+
+  currentFile.value = {
+    name: file.name,
+    type: file.type,
+    content: blob,
+    objectUrl: URL.createObjectURL(new Blob([blob])),
+  };
+};
+
+const reset = () => {
+  currentFile.value = undefined;
+  progress.value = undefined;
+};
+
+const uploadAndMint = async (e: any) => {
+  e.preventDefault();
+  const data = await uploadToNftStorage();
+  await mintNft(data);
+};
+
+const uploadToNftStorage = async () => {
+  progress.value = 'uploading';
+  metadata.description = metadata.description.trim();
+
+  const nftStorageUploader = new NftStorageUploader();
+  return await nftStorageUploader.upload(currentFile.value, metadata);
+};
+
+const mintNft = async (data: any) => {
+  progress.value = 'minting';
+  await ipc.send('mint_nft', { ...data, did: selected?.id });
+  progress.value = 'done';
+};
+
+const getProgressWidth = () => {
+  switch (progress.value) {
+    case 'done':
+      return '100%';
+    case 'minting':
+      return '62.5%';
+    case 'uploading':
+      return '37.5%';
+    default:
+      return '7%';
+  }
+};
 </script>
 <template>
-  <form
-    class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8 divide-y divide-gray-200"
-  >
+  <form class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8" @submit="uploadAndMint">
     <div class="space-y-8 divide-y divide-gray-200">
       <div>
         <div>
-          <h3 class="text-3xl leading-6 font-medium text-gray-900">
-            Mint an NFT
-          </h3>
+          <h3 class="text-3xl leading-6 font-medium text-gray-900">Mint a single NFT</h3>
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
           <div class="col-span-6 xl:col-span-3 space-y-6">
             <div>
               <Listbox as="div" v-model="selected">
-                <ListboxLabel class="block text-sm font-medium text-gray-700">
-                  Creator
-                </ListboxLabel>
+                <ListboxLabel class="block text-sm font-medium text-gray-700"> Creator</ListboxLabel>
                 <div class="mt-1 relative">
                   <ListboxButton
                     class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   >
                     <span v-if="selected" class="flex items-center">
-                      <img
-                        :src="selected.avatar"
-                        alt=""
-                        class="flex-shrink-0 h-6 w-6 rounded-full"
-                      />
-                      <span class="ml-3 block truncate">{{
-                        selected.name
-                      }}</span>
+                      <span v-html="selected.avatar" />
+                      <span class="ml-3 block truncate">{{ selected.name }}</span>
                     </span>
                     <span v-else class="flex items-center">
-                      <img
-                        src=""
-                        alt=""
-                        class="flex-shrink-0 h-6 w-6 rounded-full"
-                      />
+                      <img src="" alt="" class="flex-shrink-0 h-6 w-6 rounded-full" />
                       <span class="ml-3 block truncate">Create new DID...</span>
                     </span>
-                    <span
-                      class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
-                    >
-                      <SelectorIcon
-                        class="h-5 w-5 text-gray-400"
-                        aria-hidden="true"
-                      />
+                    <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                      <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
                     </span>
                   </ListboxButton>
 
@@ -114,24 +136,13 @@ const selected = ref(undefined);
                       >
                         <li
                           :class="[
-                            active
-                              ? 'text-white bg-emerald-600'
-                              : 'text-gray-900',
+                            active ? 'text-white bg-emerald-600' : 'text-gray-900',
                             'cursor-default select-none relative py-2 pl-3 pr-9',
                           ]"
                         >
                           <div class="flex items-center">
-                            <img
-                              :src="did.avatar"
-                              alt=""
-                              class="flex-shrink-0 h-6 w-6 rounded-full"
-                            />
-                            <span
-                              :class="[
-                                selected ? 'font-semibold' : 'font-normal',
-                                'ml-3 block truncate',
-                              ]"
-                            >
+                            <span v-html="did.avatar" />
+                            <span :class="[selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate']">
                               {{ did.name }}
                             </span>
                           </div>
@@ -153,90 +164,61 @@ const selected = ref(undefined);
               </Listbox>
             </div>
             <div>
-              <label
-                for="title"
-                class="block text-sm font-medium text-gray-700"
-              >
-                Title
-              </label>
+              <label for="name" class="block text-sm font-medium text-gray-700"> Name </label>
               <div class="mt-1">
                 <input
                   type="text"
-                  name="title"
-                  id="title"
-                  autocomplete="title"
+                  v-model="metadata.name"
+                  name="name"
+                  id="name"
+                  autocomplete="name"
                   class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
                 />
               </div>
             </div>
 
             <div>
-              <label
-                for="about"
-                class="block text-sm font-medium text-gray-700"
-              >
-                Description
-              </label>
+              <label for="description" class="block text-sm font-medium text-gray-700"> Description </label>
               <div class="mt-1">
                 <textarea
-                  id="about"
-                  name="about"
+                  v-model="metadata.description"
+                  id="description"
+                  name="description"
                   rows="5"
                   class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full sm:text-sm border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700"> Royalty percentage </label>
+              <div class="mt-1">
+                <input
+                  type="number"
+                  v-model="metadata.royalty_percentage"
+                  name="royalty_percentage"
+                  id="royalty_percentage"
+                  min="0"
+                  max="100"
+                  class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
                 />
               </div>
             </div>
           </div>
 
           <div class="col-span-6 xl:col-span-3">
-            <label for="image" class="block text-sm font-medium text-gray-700">
-              Image
-            </label>
+            <label for="image" class="block text-sm font-medium text-gray-700"> Image </label>
             <div
-              v-if="fileContent"
-              @click.prevent="open"
+              v-if="currentFile"
               :class="[
                 isHovering ? 'border-emerald-500' : 'border-gray-300',
                 'cursor-pointer mt-1 flex justify-center border-2 rounded-md',
               ]"
             >
-              <img :src="fileContent" />
+              <img :src="currentFile.objectUrl" class="" />
             </div>
-            <div
-              v-else
-              @click.prevent="open"
-              :class="[
-                isHovering
-                  ? 'border-emerald-500'
-                  : 'border-dashed border-gray-300',
-                'cursor-pointer mt-1 flex justify-center px-6 pt-5 pb-6 border-2 rounded-md',
-              ]"
-            >
-              <div class="space-y-1 text-center">
-                <svg
-                  class="mx-auto h-12 w-12 text-gray-400"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <div class="flex text-sm text-gray-600">
-                  <span
-                    class="relative cursor-pointer bg-white rounded-md font-medium text-emerald-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-emerald-500"
-                  >
-                    Upload a file
-                  </span>
-                  <p class="pl-1">or drag and drop</p>
-                </div>
-                <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-              </div>
+            <div v-else>
+              <DropZone @drop.prevent="drop" @change="selectedFile" />
             </div>
           </div>
         </div>
@@ -247,16 +229,51 @@ const selected = ref(undefined);
       <div class="flex justify-end">
         <button
           type="button"
+          @click="reset()"
           class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
         >
           Reset
         </button>
         <button
           type="submit"
+          :disabled="progress"
           class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
         >
+          <svg
+            v-if="progress && progress !== 'done'"
+            class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
           Mint
         </button>
+      </div>
+    </div>
+    <div v-if="progress">
+      <h4 class="sr-only">Status</h4>
+      <p class="text-sm font-medium text-gray-900">
+        <span v-if="progress !== 'done'">Minting your NFT...</span><span v-else>Your NFT has been submitted!</span>
+      </p>
+      <div class="mt-6" aria-hidden="true">
+        <div class="bg-gray-200 rounded-full overflow-hidden">
+          <div class="h-2 bg-emerald-600 rounded-full" :style="{ width: getProgressWidth() }" />
+        </div>
+        <div class="hidden sm:grid grid-cols-4 text-sm font-medium text-gray-600 mt-6">
+          <div class="text-emerald-600">Preparing Metadata</div>
+          <div class="text-center text-emerald-600">Uploading files</div>
+          <div class="text-center" :class="progress === 'minting' || progress === 'done' ? 'text-emerald-600' : ''">
+            Minting NFT
+          </div>
+          <div class="text-right" :class="progress === 'done' ? 'text-emerald-600' : ''">Finished</div>
+        </div>
       </div>
     </div>
   </form>
