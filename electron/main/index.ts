@@ -249,6 +249,7 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
       did_id: args.did.didId,
       royalty_percentage: args.royaltyPercentage,
     });
+    console.log(response);
     console.log(response.spend_bundle?.coin_solutions);
     const launcherCoinRecord = response.spend_bundle?.coin_solutions.find(
       (solution: any) =>
