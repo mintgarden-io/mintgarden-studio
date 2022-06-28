@@ -22,7 +22,7 @@ What is the expected result.
 #### Environment
 
 - OS: OS version, e.g. macOS Big Sur 11.1
-- electron-vue-vite version (or commit hash), e.g. v1.0.0
+- mintgarden-studio version (or commit hash), e.g. v1.0.0
 
 #### More detail
 

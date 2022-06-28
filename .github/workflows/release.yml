@@ -23,10 +23,7 @@ defaults:
 
 jobs:
   build:
-    # see more environment https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on
-    runs-on: [ubuntu-20.04]
-    # https://www.electron.build/multi-platform-build#provided-docker-images
-    container: electronuserland/builder:wine
+    runs-on: ${{ matrix.os }}
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -35,12 +32,13 @@ jobs:
 
     strategy:
       matrix:
-        node: ["14"]
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        node: ["18"]
 
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+      - name: Check out Git repository
+        uses: actions/checkout@v1
+
 
       - name: Use Node.js ${{ matrix.node }}
         uses: actions/setup-node@v2
@@ -48,7 +46,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install
 
       # - name: Run tests
       #   run: npm run test
@@ -62,16 +60,14 @@ jobs:
       #   with:
       #     name: upload-artifact
       #     path: |
-      #       release/electron-vue-vite*.exe
-      #       release/electron-vue-vite*.AppImage
-      #       release/electron-vue-vite*.snap
+      #       release/mintgarden-studio*.exe
+      #       release/mintgarden-studio*.AppImage
+      #       release/mintgarden-studio*.snap
 
       # https://github.com/marketplace/actions/electron-builder-action
       - name: Compile & Release Electron app
         uses: samuelmeuli/action-electron-builder@v1
         with:
-          build_script_name: prebuild
           args: --config electron-builder.json5
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release: ${{ startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push' && needs.get_metadata.outputs.branch == 'main'}}
-          max_attempts: 3

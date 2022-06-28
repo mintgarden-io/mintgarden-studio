@@ -1,6 +1,6 @@
 ---
 name: Help_Wanted
-about: Confuse about the use of electron-vue-vite
+about: Confuse about the use of mintgarden-studio
 title: "[Help] the title of Help_Want report"
 labels: help wanted
 assignees: ''
