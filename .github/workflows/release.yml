@@ -27,8 +27,6 @@ jobs:
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ELECTRON_BUILDER_CACHE: "/root/.cache/electron-builder"
-      ELECTRON_CACHE: "/root/.cache/electron"
 
     strategy:
       matrix:
