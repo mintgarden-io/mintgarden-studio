@@ -1,14 +1,14 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { release } from 'os';
+import * as path from 'path';
 import { join } from 'path';
-import { chiaRoot, getConfig, getConnectionInfoFromConfig, RPCAgent, setLogLevel, TConfig } from 'chia-agent';
+import { chiaRoot, getConfig, getConnectionInfoFromConfig, RPCAgent, TConfig } from 'chia-agent';
 import Store from 'electron-store';
 import * as fs from 'fs';
-import * as path from 'path';
-import { Coin, SmartCoin } from 'greenwebjs';
+import { SmartCoin } from 'greenwebjs';
 import { bech32m } from 'bech32';
 
-setLogLevel('debug');
+// setLogLevel('debug');
 
 const store = new Store<{ CHIA_ROOT: string }>({ defaults: { CHIA_ROOT: chiaRoot } });
 
