@@ -270,17 +270,14 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
 });
 
 function getEncodedId(launcherCoinRecord: any) {
-  const smartLauncherCoin = new SmartCoin({
-    parentCoinInfo: launcherCoinRecord.coin.parent_coin_info,
-    puzzleHash: launcherCoinRecord.coin.puzzle_hash,
+  const launcherCoin = new SmartCoin({
+    parentCoinInfo: launcherCoinRecord.coin.parent_coin_info.replace('0x', ''),
+    puzzleHash: launcherCoinRecord.coin.puzzle_hash.replace('0x', ''),
     amount: launcherCoinRecord.coin.amount,
   });
-  console.log(smartLauncherCoin);
-  let id = smartLauncherCoin.getId();
-  console.log(id);
+  let id = launcherCoin.getId();
   if (id) {
     const idBuffer: Buffer = Buffer.from(id, 'hex');
-
     return bech32m.encode('nft', bech32m.toWords(idBuffer));
   }
 }

@@ -10,7 +10,6 @@ import { IpcService } from '../helpers/ipc-service';
 import { NftStorageUploader } from '../helpers/nft-storage';
 import { chiaState } from '../state/chia';
 import { shell } from 'electron';
-import { add_rate_limited_funds } from 'chia-agent/api/rpc';
 
 const ipc = new IpcService();
 
