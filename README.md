@@ -1,56 +1,18 @@
-# electron-vite-vue
 
-🥳 Really simple `Electron` + `Vue` + `Vite` boilerplate.
+<p align="center">
+  <a href="https://mintgarden.io">
+    <img src="/public/mintgarden-logo.svg" alt="MintGarden logo" width="300">
+  </a>
+</p>
 
-[![awesome-vite](https://awesome.re/mentioned-badge.svg)](https://github.com/vitejs/awesome-vite)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/ae3863e3-1aec-4eb1-8f9f-1890af56929d/deploy-status)](https://app.netlify.com/sites/electron-vite/deploys)
-![GitHub license](https://img.shields.io/github/license/caoxiemeihao/electron-vite-vue?style=flat)
-![GitHub stars](https://img.shields.io/github/stars/caoxiemeihao/electron-vite-vue?color=fa6470&style=flat)
-![GitHub forks](https://img.shields.io/github/forks/caoxiemeihao/electron-vite-vue?style=flat)
+<h3 align="center">MintGarden Studio</h3>
 
-## Features
+<div align="center">
+  Create NFTs on the Chia blockchain using a simple GUI.
+</div>
 
-📦 Out of the box  
-🎯 Based on [vue-ts](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-vue-ts) template, less invasive  
-🌱 Extensible, really simple directory structure  
-💪 Support using Node.js API in Renderer-process  
-🔩 Support C/C++ native addons  
-🖥 It's easy to implement multiple windows  
+# Usage
 
-## Quick Start
+Download the latest release from "Releases".
 
-```sh
-npm create electron-vite
-```
-
-<!-- [![quick-start](https://asciinema.org/a/483731.svg)](https://asciinema.org/a/483731) -->
-
-![electron-vite-vue.gif](https://github.com/electron-vite/electron-vite-vue/blob/main/public/electron-vite-vue.gif?raw=true)
-
-## Debug
-
-![electron-vite-react-debug.gif](https://github.com/electron-vite/electron-vite-react/blob/main/public/electron-vite-react-debug.gif?raw=true)
-
-## Directory
-
-```diff
-+ ├─┬ electron
-+ │ ├─┬ main
-+ │ │ └── index.ts    entry of Electron-main
-+ │ └─┬ preload
-+ │   └── splash.ts    entry of Electron-preload
-  ├─┬ src
-  │ └── main.ts       entry of Electron-renderer
-  ├── index.html
-  ├── package.json
-  └── vite.config.ts
-```
-
-## `dependencies` vs `devDependencies`
-
-The easiest way
-
-- Put Node.js packages in `dependencies`
-- Put web packages in `devDependencies`
-
-See more 👉 [dependencies vs devDependencies](https://github.com/electron-vite/vite-plugin-electron-renderer#dependencies-vs-devdependencies)
+You need a running Chia wallet with version 1.4.0 or larger to mint NFTs using the MintGarden Studio.
