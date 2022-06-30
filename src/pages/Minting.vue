@@ -266,7 +266,12 @@ const getProgressWidth = () => {
 
             <div>
               <label for="name" class="block text-sm font-medium text-gray-700"> Royalty percentage </label>
-              <div class="mt-1">
+              <div class="relative mt-1">
+                <div
+                  class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none sm:text-sm border-gray-300 text-gray-500"
+                >
+                  %
+                </div>
                 <input
                   type="number"
                   step="any"
@@ -275,7 +280,7 @@ const getProgressWidth = () => {
                   id="royaltyPercentage"
                   min="0"
                   max="100"
-                  class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
+                  class="pl-10 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
                 />
               </div>
             </div>
