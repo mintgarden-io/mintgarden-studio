@@ -47,7 +47,7 @@ watch(chiaState, (value, oldValue) => {
 
 const drop = async (e: any) => {
   const file = e.dataTransfer.files[0];
-  loadFile(file.path);
+  loadFile(file);
 };
 const selectedFile = async () => {
   const file = (document.querySelector('#dropzoneFile') as any).files[0];
@@ -269,6 +269,7 @@ const getProgressWidth = () => {
               <div class="mt-1">
                 <input
                   type="number"
+                  step="any"
                   v-model="onChainMetadata.royaltyPercentage"
                   name="royaltyPercentage"
                   id="royaltyPercentage"
@@ -341,8 +342,8 @@ const getProgressWidth = () => {
         <a
           class="font-semibold text-emerald-600"
           href="#"
-          @click.prevent="shell.openExternal(`https://testnet.mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
-          >https://testnet.mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
+          @click.prevent="shell.openExternal(`https://mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
+          >https://mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
         >
       </p>
       <div class="mt-6" aria-hidden="true">
