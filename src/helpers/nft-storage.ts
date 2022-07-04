@@ -5,6 +5,7 @@ import { KeyPair } from 'ucan-storage/keypair';
 import * as ed from '@noble/ed25519';
 import axios from 'axios';
 import { StorageCapability } from 'ucan-storage/types';
+import Store from 'electron-store';
 
 const MINTGARDEN_BACKEND = 'http://localhost:8000/'; // TODO
 
@@ -22,8 +23,24 @@ export class NftStorageUploader {
       type: 'application/json',
     });
 
-    // TODO
-    const userKeyPair = await loadKeyPair(new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+    const store = new Store();
+    const UCAN_PK_SLOT = "ucan_private_key";
+
+    const fromHexString = (hexString: String) =>
+      Uint8Array.from(hexString.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
+
+    const toHexString = (bytes: Uint8Array) =>
+      bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+
+    let userKeyPair: KeyPair;
+    if (store.has(UCAN_PK_SLOT)) {
+      const userPrivateKey = fromHexString(store.get(UCAN_PK_SLOT) as String);
+      userKeyPair = await loadKeyPair(userPrivateKey);
+    } else {
+      userKeyPair = await createNewKeypair();
+      store.set(UCAN_PK_SLOT, toHexString(userKeyPair.privateKey));
+    }
 
     const url = MINTGARDEN_BACKEND + 'ucan/token';
     const res = await axios({
@@ -52,9 +69,9 @@ export class NftStorageUploader {
   }
 }
 
-// async function createNewKeypair() {
-//   return await KeyPair.create();
-// }
+async function createNewKeypair() {
+  return await KeyPair.create();
+}
 
 async function loadKeyPair(privateKey: Uint8Array) {
   const publicKey = await ed.getPublicKey(privateKey);
