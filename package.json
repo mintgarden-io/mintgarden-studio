@@ -20,6 +20,7 @@
     "@tailwindcss/forms": "^0.5.2",
     "@vitejs/plugin-vue": "^2.3.3",
     "autoprefixer": "^10.4.7",
+    "axios": "^0.27.2",
     "bech32": "^2.0.0",
     "electron": "^19.0.3",
     "electron-builder": "^23.0.3",
@@ -50,6 +51,7 @@
   "dependencies": {
     "chia-agent": "^6.0.0",
     "electron-store": "^8.0.2",
-    "greenwebjs": "^1.1.6"
+    "greenwebjs": "^1.1.6",
+    "ucan-storage": "^1.2.0"
   }
 }
