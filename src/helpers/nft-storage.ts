@@ -4,6 +4,7 @@ import { build, validate } from 'ucan-storage/ucan-storage';
 import { KeyPair } from 'ucan-storage/keypair';
 import * as ed from '@noble/ed25519';
 import axios from 'axios';
+import { StorageCapability } from 'ucan-storage/types';
 
 const MINTGARDEN_BACKEND = 'http://localhost:8000/'; // TODO
 
@@ -22,7 +23,7 @@ export class NftStorageUploader {
     });
 
     // TODO
-    const userKeyPair = await loadKeyPair('3333333333333333333333333333333333333333333333333333333333333333');
+    const userKeyPair = await loadKeyPair(new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
 
     const url = MINTGARDEN_BACKEND + 'ucan/token';
     const res = await axios({
@@ -55,18 +56,18 @@ export class NftStorageUploader {
 //   return await KeyPair.create();
 // }
 
-async function loadKeyPair(privateKey) {
+async function loadKeyPair(privateKey: Uint8Array) {
   const publicKey = await ed.getPublicKey(privateKey);
   return new KeyPair(privateKey, publicKey);
 }
 
-async function createRequestToken(parentUCAN, issuerKeyPair) {
+async function createRequestToken(parentUCAN: string, issuerKeyPair: KeyPair) {
   // we want to include the capabilities of the parent token in our request token
   // so we validate the parent token to extract the payload and copy over the capabilities
   const { payload } = await validate(parentUCAN);
 
   // the `att` field contains the capabilities we need for uploading
-  const { att } = payload;
+  const att = payload.att as StorageCapability[];
 
   const nftSTorageDid = await getNftStorageDid();
 
