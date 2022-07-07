@@ -45,33 +45,43 @@ const collectionList = Object.values(collections);
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
-                  <tr v-for="collection in collectionList" :key="collection.id">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                      <div class="flex items-center">
-                        <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center">
-                          <img
-                            v-if="collection.iconUrl"
-                            class="h-10 w-10 rounded-full"
-                            :src="collection.iconUrl"
-                            alt=""
-                          />
-                          <CollectionIcon v-else class="h-6 w-6 text-gray-500" alt="" />
+                  <router-link
+                    v-for="collection in collectionList"
+                    :key="collection.id"
+                    :to="`/collections/${collection.id}`"
+                    custom
+                    v-slot="{ navigate }"
+                  >
+                    <tr @click="navigate" class="cursor-pointer hover:bg-emerald-50">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                        <div class="flex items-center">
+                          <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center">
+                            <img
+                              v-if="collection.iconUrl"
+                              class="h-10 w-10 rounded-full"
+                              :src="collection.iconUrl"
+                              alt=""
+                            />
+                            <CollectionIcon v-else class="h-6 w-6 text-gray-500" alt="" />
+                          </div>
+                          <div class="ml-4">
+                            <div class="font-medium text-gray-900">{{ collection.name }}</div>
+                          </div>
                         </div>
-                        <div class="ml-4">
-                          <div class="font-medium text-gray-900">{{ collection.name }}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <div class="text-gray-900">{{ collection.description }}</div>
-                    </td>
+                      </td>
+                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <div class="text-gray-900">{{ collection.description }}</div>
+                      </td>
 
-                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <router-link :to="`/collections/${collection.id}`" class="text-emerald-600 hover:text-emerald-900"
-                        >Edit<span class="sr-only">, {{ collection.name }}</span></router-link
-                      >
-                    </td>
-                  </tr>
+                      <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <router-link
+                          :to="`/collections/${collection.id}`"
+                          class="text-emerald-600 hover:text-emerald-900"
+                          >Edit<span class="sr-only">, {{ collection.name }}</span></router-link
+                        >
+                      </td>
+                    </tr>
+                  </router-link>
                 </tbody>
               </table>
             </div>
