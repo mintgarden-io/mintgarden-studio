@@ -5,6 +5,8 @@ import Setup from './pages/Setup.vue';
 import Minting from './pages/Minting.vue';
 import BulkMinting from './pages/BulkMinting.vue';
 import Settings from './pages/Settings.vue';
+import CollectionList from './pages/collection/CollectionList.vue';
+import CollectionDetails from './pages/collection/CollectionDetails.vue';
 import './index.css';
 import { IpcService } from './helpers/ipc-service';
 
@@ -24,6 +26,8 @@ const routes = [
     component: Minting,
     beforeEnter: [testConnection],
   },
+  { path: '/collections', component: CollectionList },
+  { path: '/collections/:id', component: CollectionDetails },
   { path: '/bulk-minting', component: BulkMinting, beforeEnter: [testConnection] },
   { path: '/settings', component: Settings },
 ];

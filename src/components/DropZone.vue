@@ -1,12 +1,42 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { defineProps, ref } from 'vue';
 import { PhotographIcon } from '@heroicons/vue/outline';
+import { File } from 'nft.storage';
+import fs from 'fs';
+
+const { modelValue } = defineProps(['modelValue']);
+const emit = defineEmits(['update:modelValue']);
 
 const active = ref(false);
+
+const drop = async (e: any) => {
+  const file = e.dataTransfer.files[0];
+  loadFile(file);
+};
+const selectedFile = async (e) => {
+  const file = (document.querySelector('#dropzoneFile') as any).files[0];
+  console.log('change', file);
+  loadFile(file);
+};
+
+const loadFile = (file: File) => {
+  // TODO ensure that file.size is not too large?
+
+  const blob = fs.readFileSync(file.path);
+
+  emit('update:modelValue', {
+    name: file.name,
+    type: file.type,
+    content: blob,
+    objectUrl: URL.createObjectURL(new Blob([blob])),
+  });
+  (document.querySelector('#dropzoneFile') as any).value = '';
+};
 </script>
 
 <template>
   <label
+    id="dropzoneFileLabel"
     for="dropzoneFile"
     @dragenter.prevent="active = true"
     @dragleave.prevent="active = false"
@@ -22,7 +52,7 @@ const active = ref(false);
     <span class="pointer-events-none mt-2 block text-sm font-medium text-gray-600"
       >Drop an image, or click to select a file</span
     >
-    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-    <input type="file" id="dropzoneFile" class="hidden" accept="image/*" />
+    <div class="text-xs text-gray-500">PNG, JPG, GIF, ...</div>
+    <input @change="selectedFile" type="file" id="dropzoneFile" class="hidden" accept="image/*" />
   </label>
 </template>

@@ -1,28 +1,41 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from '@headlessui/vue';
 import { CheckIcon, SelectorIcon, XCircleIcon } from '@heroicons/vue/solid';
 import { toSvg } from 'jdenticon';
 import DropZone from '../components/DropZone.vue';
-import * as fs from 'fs';
-import { File } from 'nft.storage';
 import { IpcService } from '../helpers/ipc-service';
 import { NftStorageUploader } from '../helpers/nft-storage';
 import { chiaState } from '../state/chia';
 import { shell } from 'electron';
+import { Collection, store } from '../state/store';
 
 const ipc = new IpcService();
 
-const initialMetadata = { name: '', description: '', collection: { id: '', name: '' } };
+const initialMetadata = {
+  format: 'CHIP-0007',
+  minting_tool: 'mintgarden-studio',
+  sensitive_content: false,
+  name: '',
+  description: '',
+  attributes: [],
+};
+const initialOnChainMetadata = { royaltyPercentage: 0, targetAddress: undefined, royaltyAddress: undefined };
 
 const currentFile = ref<any>(undefined);
-const metadata = reactive(initialMetadata);
-const onChainMetadata = reactive({ royaltyPercentage: 0, targetAddress: undefined, royaltyAddress: undefined });
+const metadata = reactive(JSON.parse(JSON.stringify(initialMetadata)));
+const onChainMetadata = reactive({ ...initialOnChainMetadata });
 const fee = ref(0);
+const confirmLegal = ref(false);
+
+const dropzone = ref();
 
 const isHovering = ref(false);
 const dids = ref([]);
-const selected = ref<any>(undefined);
+const selectedDid = ref<any>(undefined);
+const collections = Object.values(store.get('collections'));
+const selectedCollection = ref<Collection | undefined>(undefined);
+
 type MintingStage = 'preparing' | 'uploading' | 'minting' | 'done';
 const progress = ref<undefined | MintingStage | 'error'>(undefined);
 const someError = ref<{ stage: MintingStage; error: any } | undefined>(undefined);
@@ -35,7 +48,7 @@ const getDids = async () => {
     did.avatar = toSvg(did.didId, 24);
   }
   dids.value = response.dids;
-  selected.value = dids.value[0];
+  selectedDid.value = dids.value[0];
 };
 getDids();
 
@@ -45,35 +58,26 @@ watch(chiaState, (value, oldValue) => {
   }
 });
 
-const drop = async (e: any) => {
-  const file = e.dataTransfer.files[0];
-  loadFile(file);
-};
-const selectedFile = async () => {
-  const file = (document.querySelector('#dropzoneFile') as any).files[0];
-  loadFile(file);
-};
-
-const loadFile = (file: File) => {
-  // TODO ensure that file.size is not too large?
-
-  const blob = fs.readFileSync(file.path);
-
-  currentFile.value = {
-    name: file.name,
-    type: file.type,
-    content: blob,
-    objectUrl: URL.createObjectURL(new Blob([blob])),
-  };
-};
-
-const reset = () => {
+const clearNftDetails = () => {
   currentFile.value = undefined;
   progress.value = undefined;
   someError.value = undefined;
-  Object.assign(metadata, initialMetadata);
+  confirmLegal.value = false;
+  metadata.name = '';
+  metadata.description = '';
   nft.value = undefined;
 };
+
+const clearForm = () => {
+  clearNftDetails();
+  selectedCollection.value = undefined;
+  Object.assign(metadata, JSON.parse(JSON.stringify(initialMetadata)));
+  Object.assign(onChainMetadata, initialOnChainMetadata);
+};
+
+const isMintingEnabled = computed(() => {
+  return confirmLegal.value && (!progress.value || progress.value === 'done' || someError.value);
+});
 
 const uploadAndMint = async (e: any) => {
   e.preventDefault();
@@ -107,17 +111,34 @@ const uploadAndMint = async (e: any) => {
 const uploadToNftStorage = async () => {
   progress.value = 'uploading';
   const metadataToUpload: any = { ...metadata, description: metadata.description.trim() };
-  if (!metadata.collection.id) {
-    metadataToUpload.collection = undefined;
+  if (selectedCollection.value) {
+    metadataToUpload.collection = {
+      id: selectedCollection.value.id,
+      name: selectedCollection.value.name,
+      attributes: [],
+    };
+    const addAttributeIfSet = (type: string, value: string | undefined) => {
+      if (value) {
+        metadataToUpload.collection.attributes.push({
+          type,
+          value,
+        });
+      }
+    };
+    addAttributeIfSet('description', selectedCollection.value.description);
+    addAttributeIfSet('icon', selectedCollection.value.iconUrl);
+    addAttributeIfSet('banner', selectedCollection.value.bannerUrl);
+    addAttributeIfSet('twitter', selectedCollection.value.twitterHandle);
+    addAttributeIfSet('website', selectedCollection.value.website);
   }
 
   const nftStorageUploader = new NftStorageUploader();
   return await nftStorageUploader.upload(currentFile.value, metadataToUpload);
 };
 
-const mintNft = async (urisAndHashes: any): any => {
+const mintNft = async (urisAndHashes: any): Promise<any> => {
   progress.value = 'minting';
-  const nft = await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selected.value } });
+  const nft = await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selectedDid.value } });
   progress.value = 'done';
   return nft;
 };
@@ -134,9 +155,12 @@ const getProgressWidth = () => {
       return '7%';
   }
 };
+const openFilePicker = () => {
+  document.querySelector('#dropzoneFileLabel').click();
+};
 </script>
 <template>
-  <form class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8" @submit="uploadAndMint">
+  <form ref="container" class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8" @submit="uploadAndMint">
     <div class="space-y-8 divide-y divide-gray-200">
       <div>
         <div>
@@ -146,15 +170,15 @@ const getProgressWidth = () => {
         <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
           <div class="col-span-6 xl:col-span-3 space-y-6">
             <div>
-              <Listbox as="div" v-model="selected">
+              <Listbox as="div" v-model="selectedDid">
                 <ListboxLabel class="block text-sm font-medium text-gray-700"> Creator</ListboxLabel>
                 <div class="mt-1 relative">
                   <ListboxButton
                     class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
                   >
-                    <span v-if="selected" class="flex items-center">
-                      <span v-if="selected.avatar" v-html="selected.avatar" />
-                      <span class="ml-3 block truncate">{{ selected.name }}</span>
+                    <span v-if="selectedDid" class="flex items-center">
+                      <span v-if="selectedDid.avatar" v-html="selectedDid.avatar" />
+                      <span class="ml-3 block truncate">{{ selectedDid.name }}</span>
                     </span>
                     <span v-else class="flex items-center">
                       <img src="" alt="" class="flex-shrink-0 h-6 w-6 rounded-full" />
@@ -210,6 +234,99 @@ const getProgressWidth = () => {
               </Listbox>
             </div>
             <div>
+              <Listbox as="div" v-model="selectedCollection">
+                <ListboxLabel class="block text-sm font-medium text-gray-700">Collection</ListboxLabel>
+                <div class="mt-1 relative">
+                  <ListboxButton
+                    class="relative w-full bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                  >
+                    <span v-if="selectedCollection" class="flex items-center">
+                      <img
+                        v-if="selectedCollection.iconUrl"
+                        class="h-6 w-6 rounded-full"
+                        :src="selectedCollection.iconUrl"
+                      />
+                      <span :class="selectedCollection.iconUrl ? 'ml-3' : ''" class="block truncate">{{
+                        selectedCollection.name
+                      }}</span>
+                    </span>
+                    <span v-else class="flex items-center">
+                      <span class="block truncate">No Collection</span>
+                    </span>
+                    <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                      <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    </span>
+                  </ListboxButton>
+
+                  <transition
+                    leave-active-class="transition ease-in duration-100"
+                    leave-from-class="opacity-100"
+                    leave-to-class="opacity-0"
+                  >
+                    <ListboxOptions
+                      class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-56 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm"
+                    >
+                      <ListboxOption as="template" key="none" :value="undefined" v-slot="{ active, selected }">
+                        <li
+                          :class="[
+                            active ? 'text-white bg-emerald-600' : 'text-gray-900',
+                            'cursor-default select-none relative py-2 pl-3 pr-9',
+                          ]"
+                        >
+                          <div class="flex items-center">
+                            <span :class="[selected ? 'font-semibold' : 'font-normal', 'block truncate']">
+                              No Collection
+                            </span>
+                          </div>
+
+                          <span
+                            v-if="selected"
+                            :class="[
+                              active ? 'text-white' : 'text-emerald-600',
+                              'absolute inset-y-0 right-0 flex items-center pr-4',
+                            ]"
+                          >
+                            <CheckIcon class="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        </li>
+                      </ListboxOption>
+                      <ListboxOption
+                        as="template"
+                        v-for="collection in collections"
+                        :key="collection.id"
+                        :value="collection"
+                        v-slot="{ active, selected }"
+                      >
+                        <li
+                          :class="[
+                            active ? 'text-white bg-emerald-600' : 'text-gray-900',
+                            'cursor-default select-none relative py-2 pl-3 pr-9',
+                          ]"
+                        >
+                          <div class="flex items-center">
+                            <img v-if="collection.iconUrl" class="h-6 w-6 rounded-full" :src="collection.iconUrl" />
+                            <span :class="[selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate']">
+                              {{ collection.name }}
+                            </span>
+                          </div>
+
+                          <span
+                            v-if="selected"
+                            :class="[
+                              active ? 'text-white' : 'text-emerald-600',
+                              'absolute inset-y-0 right-0 flex items-center pr-4',
+                            ]"
+                          >
+                            <CheckIcon class="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        </li>
+                      </ListboxOption>
+                    </ListboxOptions>
+                  </transition>
+                </div>
+              </Listbox>
+            </div>
+            <div>
               <label for="name" class="block text-sm font-medium text-gray-700"> Name </label>
               <div class="mt-1">
                 <input
@@ -235,34 +352,6 @@ const getProgressWidth = () => {
                 />
               </div>
             </div>
-
-            <fieldset class="mt-6 bg-white">
-              <legend class="block text-sm font-medium text-gray-700">Collection (optional)</legend>
-              <div class="mt-1 rounded-md shadow-sm -space-y-px">
-                <div>
-                  <label for="collectionId" class="sr-only">Collection ID</label>
-                  <input
-                    type="text"
-                    v-model="metadata.collection.id"
-                    name="collectionId"
-                    id="collectionId"
-                    class="focus:ring-emerald-500 focus:border-emerald-500 relative block w-full rounded-none rounded-t-md bg-transparent focus:z-10 sm:text-sm border-gray-300"
-                    placeholder="ID"
-                  />
-                </div>
-                <div>
-                  <label for="collectionName" class="sr-only">Collection Name</label>
-                  <input
-                    type="text"
-                    v-model="metadata.collection.name"
-                    name="collectionName"
-                    id="collectionName"
-                    class="focus:ring-emerald-500 focus:border-emerald-500 relative block w-full rounded-none rounded-b-md bg-transparent focus:z-10 sm:text-sm border-gray-300"
-                    placeholder="Name"
-                  />
-                </div>
-              </div>
-            </fieldset>
 
             <div>
               <label for="name" class="block text-sm font-medium text-gray-700"> Royalty percentage </label>
@@ -295,10 +384,40 @@ const getProgressWidth = () => {
                 'cursor-pointer mt-1 flex justify-center border-2 rounded-md',
               ]"
             >
-              <img :src="currentFile.objectUrl" class="" />
+              <img @click="openFilePicker()" :src="currentFile.objectUrl" class="" />
             </div>
-            <div v-else>
-              <DropZone @drop.prevent="drop" @change="selectedFile" />
+            <div :class="currentFile ? 'hidden' : ''">
+              <DropZone ref="dropzone" v-model="currentFile" />
+            </div>
+            <div v-if="currentFile" class="flex-grow flex justify-end items-center space-x-4">
+              <button
+                @click="currentFile = undefined"
+                type="button"
+                class="bg-white rounded-md text-sm text-emerald-600 hover:text-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+          <div class="col-span-6">
+            <div>
+              <div class="relative flex items-start">
+                <div class="flex items-center h-5">
+                  <input
+                    id="confirmLegal"
+                    v-model="confirmLegal"
+                    required
+                    name="confirmLegal"
+                    type="checkbox"
+                    class="focus:ring-emerald-500 h-4 w-4 text-emerald-600 border-gray-300 rounded"
+                  />
+                </div>
+                <div class="ml-3 text-sm">
+                  <label for="confirmLegal" class="font-medium text-gray-700"
+                    >I confirm that I have the necessary legal rights to reference this data in an NFT.</label
+                  >
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -309,15 +428,15 @@ const getProgressWidth = () => {
       <div class="flex justify-end">
         <button
           type="button"
-          @click="reset()"
+          @click="clearForm()"
           class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
         >
-          Reset
+          Clear Everything
         </button>
         <button
           type="submit"
-          :disabled="progress && progress !== 'done' && !someError"
-          class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+          :class="isMintingEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-500'"
+          class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
         >
           <svg
             v-if="progress && progress !== 'done' && !someError"
