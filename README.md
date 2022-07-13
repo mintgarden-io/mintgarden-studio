@@ -13,7 +13,7 @@
 
 
 <p align="center">
-  <img src=".github/screenshot.png" alt="MintGarden Studio screenshot" width="600">
+  <img src=".github/screenshot.png" alt="MintGarden Studio screenshot">
 </p>
 
 # Usage
