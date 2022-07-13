@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CollectionIcon, PlusIcon } from '@heroicons/vue/outline';
+import { CollectionIcon, PlusIcon, TrashIcon } from '@heroicons/vue/outline';
 import { Collection, store } from '../../state/store';
 import { useRoute, useRouter } from 'vue-router';
 import { reactive, ref } from 'vue';
@@ -14,7 +14,14 @@ const collections = store.get('collections');
 
 const isExisting = ref(false);
 
-const collection = reactive<Collection>({ id: '', name: '', description: '', iconUrl: '', bannerUrl: '' });
+const collection = reactive<Collection>({
+  id: '',
+  name: '',
+  description: '',
+  iconUrl: '',
+  bannerUrl: '',
+  attributes: [],
+});
 if (route.params.id === 'new') {
   collection.id = crypto.randomUUID();
 } else {
@@ -32,9 +39,23 @@ if (route.params.id === 'new') {
   }
 }
 
-const saveCollection = (e: Event) => {
-  e.preventDefault();
+const newAttributeName = ref('');
+const addAttribute = () => {
+  const existingName = collection.attributes.find(({ name }) => name === newAttributeName.value);
+  if (!existingName) {
+    collection.attributes.push({ name: newAttributeName.value });
+    newAttributeName.value = '';
+  }
+};
 
+const deleteAttribute = (nameToDelete: string) => {
+  const existingAttributeIndex = collection.attributes.findIndex(({ name }) => name === nameToDelete);
+  if (existingAttributeIndex >= 0) {
+    collection.attributes.splice(existingAttributeIndex, 1);
+  }
+};
+
+const saveCollection = () => {
   collections[collection.id] = Object.assign({}, collection);
   store.set({ collections });
 
@@ -50,7 +71,7 @@ const deleteCollection = () => {
 };
 </script>
 <template>
-  <form ref="container" class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8" @submit="saveCollection">
+  <form ref="container" class="p-8 w-full max-w-2xl space-y-8" @submit.prevent="saveCollection">
     <div class="space-y-8 divide-y divide-gray-200">
       <div>
         <div>
@@ -102,6 +123,53 @@ const deleteCollection = () => {
                 />
               </div>
             </div>
+
+            <div>
+              <label for="description" class="block text-sm font-medium text-gray-700"> Attributes (optional) </label>
+              <div class="flex mt-3" v-for="attribute in collection.attributes">
+                <div class="flex-grow">
+                  <input
+                    type="text"
+                    :value="attribute.name"
+                    disabled
+                    name="attribute-name"
+                    id="attribute-name"
+                    class="corsor-not-allowed bg-gray-100 block w-full shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+                <span class="ml-3">
+                  <button
+                    type="button"
+                    @click="deleteAttribute(attribute.name)"
+                    class="bg-white inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                  >
+                    <TrashIcon class="-ml-2 mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
+                    <span>Delete</span>
+                  </button>
+                </span>
+              </div>
+              <form class="flex mt-3" @submit.prevent="addAttribute">
+                <div class="flex-grow">
+                  <input
+                    type="text"
+                    v-model="newAttributeName"
+                    name="new-attribute-name"
+                    id="new-attribute-name"
+                    class="block w-full shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300 rounded-md"
+                    placeholder="Attribute name"
+                  />
+                </div>
+                <span class="ml-3">
+                  <button
+                    type="submit"
+                    class="bg-white inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                  >
+                    <PlusIcon class="-ml-2 mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
+                    <span>Add</span>
+                  </button>
+                </span>
+              </form>
+            </div>
             <div>
               <label for="twitterHandle" class="block text-sm font-medium text-gray-700"> Twitter Handle </label>
               <div class="mt-1 relative rounded-md shadow-sm">
@@ -148,7 +216,7 @@ const deleteCollection = () => {
                 />
               </div>
               <div v-if="collection.iconUrl" :class="['h-48 cursor-pointer mt-1 flex justify-start rounded-md']">
-                <img :src="collection.iconUrl" class="" />
+                <img :src="collection.iconUrl" class="object-contain" />
               </div>
             </div>
             <div>
@@ -165,7 +233,7 @@ const deleteCollection = () => {
                 />
               </div>
               <div v-if="collection.bannerUrl" :class="['h-48 cursor-pointer mt-1 flex justify-start rounded-md']">
-                <img :src="collection.bannerUrl" class="" />
+                <img :src="collection.bannerUrl" class="object-contain" />
               </div>
             </div>
           </div>

@@ -6,7 +6,7 @@ const collections = store.get('collections');
 const collectionList = Object.values(collections);
 </script>
 <template>
-  <div class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8">
+  <div class="p-8 w-full xl:max-w-7xl space-y-8">
     <div>
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
@@ -69,7 +69,7 @@ const collectionList = Object.values(collections);
                           </div>
                         </div>
                       </td>
-                      <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td class="px-3 py-4 text-sm text-gray-500">
                         <div class="text-gray-900">{{ collection.description }}</div>
                       </td>
 

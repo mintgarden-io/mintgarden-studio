@@ -35,10 +35,14 @@ const ipc = new IpcService();
 let syncPollInterval = undefined;
 const init = async () => {
   try {
-    chiaState.syncStatus = await ipc.send('get_sync_status');
+    const { synced, syncing } = await ipc.send('get_sync_status');
+    chiaState.synced = synced;
+    chiaState.syncing = syncing;
 
     syncPollInterval = setInterval(async () => {
-      chiaState.syncStatus = await ipc.send('get_sync_status');
+      const { synced, syncing } = await ipc.send('get_sync_status');
+      chiaState.synced = synced;
+      chiaState.syncing = syncing;
     }, 5000);
 
     const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
@@ -57,9 +61,13 @@ const login = async (fingerprint: string) => {
     fingerprint,
   });
   chiaState.activeFingerprint = response.fingerprint;
-  chiaState.syncStatus = await ipc.send('get_sync_status');
+  const { synced, syncing } = await ipc.send('get_sync_status');
+  chiaState.synced = synced;
+  chiaState.syncing = syncing;
   setTimeout(async () => {
-    chiaState.syncStatus = await ipc.send('get_sync_status');
+    const { synced, syncing } = await ipc.send('get_sync_status');
+    chiaState.synced = synced;
+    chiaState.syncing = syncing;
   }, 1000);
   loginInProgress.value = false;
 };
@@ -202,7 +210,7 @@ const login = async (fingerprint: string) => {
         </div>
       </div>
     </div>
-    <div class="flex-1 overflow-scroll min-w-min">
+    <div class="flex-1 overflow-auto min-w-min">
       <router-view></router-view>
     </div>
   </div>

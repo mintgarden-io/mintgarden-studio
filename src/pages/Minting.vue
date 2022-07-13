@@ -53,11 +53,18 @@ const getDids = async () => {
 };
 getDids();
 
-watch(chiaState, (value, oldValue) => {
-  if (value.syncStatus && oldValue.syncStatus && !oldValue.syncStatus.synced && value.syncStatus.synced) {
-    getDids();
+watch(
+  () => ({ ...chiaState }),
+  (value, oldValue) => {
+    console.log(oldValue, value);
+    if (oldValue.activeFingerprint !== value.activeFingerprint) {
+      getDids();
+    }
+    if (!oldValue.synced && value.synced) {
+      getDids();
+    }
   }
-});
+);
 
 const clearNftDetails = () => {
   currentFile.value = undefined;
@@ -66,6 +73,7 @@ const clearNftDetails = () => {
   confirmLegal.value = false;
   metadata.name = '';
   metadata.description = '';
+  metadata.attributes = [];
   nft.value = undefined;
 };
 
@@ -80,8 +88,20 @@ const isMintingEnabled = computed(() => {
   return confirmLegal.value && (!progress.value || progress.value === 'done' || someError.value);
 });
 
-const uploadAndMint = async (e: any) => {
-  e.preventDefault();
+const setAttributeValue = (name: string, e) => {
+  const value = e.target.value;
+
+  const existingAttributeIndex = metadata.attributes.findIndex((attribute: any) => attribute.name === name);
+  if (existingAttributeIndex >= 0) {
+    if (value) {
+      metadata.attributes[existingAttributeIndex].value = value;
+    } else {
+      metadata.attributes.splice(existingAttributeIndex, 1);
+    }
+  } else {
+    metadata.attributes.push({ name, value: e.target.value });
+  }
+};
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -201,7 +221,6 @@ const openFilePicker = () => {
                       <span class="ml-3 block truncate">{{ selectedDid.name }}</span>
                     </span>
                     <span v-else class="flex items-center">
-                      <img src="" alt="" class="flex-shrink-0 h-6 w-6 rounded-full" />
                       <span class="ml-3 block truncate">No DID</span>
                     </span>
                     <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
@@ -370,6 +389,26 @@ const openFilePicker = () => {
                   rows="5"
                   class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full sm:text-sm border border-gray-300 rounded-md"
                 />
+              </div>
+            </div>
+
+            <div v-if="selectedCollection && selectedCollection.attributes?.length > 0">
+              <label for="company-website" class="block text-sm font-medium text-gray-700">Attributes</label>
+              <div class="mt-1 flex flex-col gap-2">
+                <div v-for="attribute in selectedCollection.attributes" class="flex rounded-md shadow-sm">
+                  <span
+                    class="min-w-[8rem] inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                  >
+                    {{ attribute.name }}
+                  </span>
+                  <input
+                    type="text"
+                    @change="setAttributeValue(attribute.name, $event)"
+                    :name="`${attribute.name}-value`"
+                    :id="`${attribute.name}-value`"
+                    class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300"
+                  />
+                </div>
               </div>
             </div>
 

@@ -9,6 +9,7 @@ export interface Collection {
   bannerUrl?: string;
   twitterHandle?: string;
   website?: string;
+  attributes: { name: string }[];
 }
 
 export const store = new Store<{ CHIA_ROOT: string; collections: { [id: string]: Collection } }>({
