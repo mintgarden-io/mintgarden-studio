@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { Listbox, ListboxButton, ListboxLabel, ListboxOption, ListboxOptions } from '@headlessui/vue';
 import { CheckIcon, SelectorIcon, XCircleIcon } from '@heroicons/vue/solid';
 import { toSvg } from 'jdenticon';
@@ -29,6 +29,7 @@ const fee = ref(0);
 const confirmLegal = ref(false);
 
 const dropzone = ref();
+const container = ref();
 
 const isHovering = ref(false);
 const dids = ref([]);
@@ -82,22 +83,40 @@ const isMintingEnabled = computed(() => {
 const uploadAndMint = async (e: any) => {
   e.preventDefault();
 
+const scrollToBottom = () => {
+  nextTick(() => {
+    container.value.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'start' });
+  });
+};
+
+const uploadAndMint = async () => {
   try {
     nft.value = undefined;
     progress.value = 'preparing';
     someError.value = undefined;
+    scrollToBottom();
 
     if (!currentFile.value) {
       someError.value = { stage: 'preparing', error: new Error('No image selected.') };
+      scrollToBottom();
       return;
     }
 
-    if (!chiaState.syncStatus?.synced) {
+    if (!chiaState.synced) {
       someError.value = { stage: 'preparing', error: new Error('Wallet is not synced.') };
+      scrollToBottom();
+      return;
+    }
+
+    if (!selectedDid.value) {
+      someError.value = { stage: 'preparing', error: new Error('No DID selected.') };
+      scrollToBottom();
       return;
     }
 
     const urisAndHashes = await uploadToNftStorage();
+    scrollToBottom();
+
     try {
       nft.value = await mintNft(urisAndHashes);
     } catch (mintingError) {
@@ -106,6 +125,7 @@ const uploadAndMint = async (e: any) => {
   } catch (uploadError) {
     someError.value = { stage: 'uploading', error: uploadError };
   }
+  scrollToBottom();
 };
 
 const uploadToNftStorage = async () => {
@@ -160,7 +180,7 @@ const openFilePicker = () => {
 };
 </script>
 <template>
-  <form ref="container" class="p-8 w-full max-w-xl xl:max-w-7xl space-y-8" @submit="uploadAndMint">
+  <form ref="container" class="p-8 w-full max-w-2xl xl:max-w-7xl space-y-8" @submit.prevent="uploadAndMint">
     <div class="space-y-8 divide-y divide-gray-200">
       <div>
         <div>
@@ -461,7 +481,7 @@ const openFilePicker = () => {
       <p class="text-sm font-medium text-gray-900">
         <span v-if="progress !== 'done'">Minting your NFT...</span><span v-else>Your NFT has been minted!</span>
       </p>
-      <p v-if="progress === 'done'" class="mt-1 text-sm text-gray-600">
+      <p v-if="progress === 'done'" class="mt-1 text-sm text-gray-600 overflow-hidden overflow-ellipsis">
         It can take a minute to be added to the blockchain. <br />You can find it here:
         <a
           class="font-semibold text-emerald-600"
