@@ -1,7 +1,7 @@
 
 <p align="center">
   <a href="https://mintgarden.io">
-    <img src="/public/mintgarden-logo.svg" alt="MintGarden logo" width="300">
+    <img src="public/mintgarden-logo.svg" alt="MintGarden logo" width="300">
   </a>
 </p>
 
@@ -10,6 +10,11 @@
 <div align="center">
   Create NFTs on the Chia blockchain using a simple GUI.
 </div>
+
+
+<p align="center">
+  <img src=".github/screenshot.png" alt="MintGarden Studio screenshot" width="600">
+</p>
 
 # Usage
 
