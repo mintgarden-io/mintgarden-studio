@@ -244,7 +244,6 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
       wallet_type: 'nft_wallet',
       did_id: did.didId,
     });
-    console.log(walletResponse);
 
     const response = await agent.sendMessage<any>('wallet', 'nft_mint_nft', {
       wallet_id: walletResponse.wallet_id,
@@ -257,22 +256,48 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
       did_id: args.did.didId,
       royalty_percentage: args.royaltyPercentage * 100,
     });
-    console.log(response);
-    console.log(response.spend_bundle?.coin_solutions);
     const launcherCoinRecord = response.spend_bundle?.coin_solutions.find(
       (solution: any) =>
         solution.coin.puzzle_hash === '0xeff07522495060c066f66f32acc2a77e3a3e737aca8baea4d1a64ea4cdc13da9'
     );
     console.log(launcherCoinRecord);
-    let encodedId = undefined;
+    let nft = undefined;
     if (launcherCoinRecord) {
-      encodedId = getEncodedId(launcherCoinRecord);
-      console.log(encodedId);
+      nft = getEncodedId(launcherCoinRecord);
+      console.log('nft', nft);
     }
 
-    event.sender.send(responseChannel, encodedId ? { encodedId } : undefined);
+    event.sender.send(responseChannel, nft);
   } catch (error) {
     console.log('Failed to mint NFT', error);
+    event.sender.send(responseChannel, { error });
+  }
+});
+
+ipcMain.on('get_nft_mint_status', async (event, { responseChannel, ...args }) => {
+  try {
+    const agent = getChiaAgent();
+    const walletResponse = await agent.sendMessage<any>('wallet', 'get_transactions', {
+      wallet_id: 1,
+      end: 10,
+      reverse: true,
+    });
+    for (const transaction of walletResponse.transactions) {
+      for (const addition of transaction.additions) {
+        const smartCoin = new SmartCoin({
+          parentCoinInfo: addition.parent_coin_info.replace('0x', ''),
+          puzzleHash: addition.puzzle_hash.replace('0x', ''),
+          amount: addition.amount,
+        });
+        if (smartCoin.getName() === args.nftId) {
+          event.sender.send(responseChannel, { transaction });
+          return;
+        }
+      }
+    }
+    event.sender.send(responseChannel, { transaction: undefined });
+  } catch (error) {
+    console.log('Failed to get NFT mint status', error);
     event.sender.send(responseChannel, { error });
   }
 });
@@ -301,6 +326,6 @@ function getEncodedId(launcherCoinRecord: any) {
   let id = launcherCoin.getId();
   if (id) {
     const idBuffer: Buffer = Buffer.from(id, 'hex');
-    return bech32m.encode('nft', bech32m.toWords(idBuffer));
+    return { id, encodedId: bech32m.encode('nft', bech32m.toWords(idBuffer)) };
   }
 }

@@ -50,10 +50,10 @@ const selectedDid = ref<any>(undefined);
 const collections = Object.values(store.get('collections'));
 const selectedCollection = ref<Collection | undefined>(undefined);
 
-type MintingStage = 'preparing' | 'uploading' | 'minting' | 'done';
+type MintingStage = 'preparing' | 'uploading' | 'minting' | 'pending' | 'done';
 const progress = ref<undefined | MintingStage | 'error'>(undefined);
 const someError = ref<{ stage: MintingStage; error: any } | undefined>(undefined);
-const nft = ref<{ encodedId: string } | undefined>(undefined);
+const nft = ref<{ id: string; encodedId: string } | undefined>(undefined);
 
 const getDids = async () => {
   const response = await ipc.send<any>('get_dids');
@@ -161,6 +161,10 @@ const scrollToBottom = () => {
 };
 
 const uploadAndMint = async () => {
+  if (!isMintingEnabled.value) {
+    return;
+  }
+
   try {
     nft.value = undefined;
     progress.value = 'preparing';
@@ -190,6 +194,7 @@ const uploadAndMint = async () => {
 
     try {
       nft.value = await mintNft(urisAndHashes);
+      await pollForMintingStatus();
     } catch (mintingError) {
       someError.value = { stage: 'minting', error: mintingError?.error || mintingError };
     }
@@ -229,9 +234,35 @@ const uploadToNftStorage = async () => {
 
 const mintNft = async (urisAndHashes: any): Promise<any> => {
   progress.value = 'minting';
-  const nft = await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selectedDid.value } });
-  progress.value = 'done';
-  return nft;
+  return await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selectedDid.value } });
+};
+
+let pollForMintingStatusInterval: NodeJS.Timer | undefined = undefined;
+let nftStatusPollCounter = ref(0);
+const pollForMintingStatus = async (): Promise<any> => {
+  progress.value = 'pending';
+  nftStatusPollCounter.value = 0;
+
+  const polling = async () => {
+    const data = await ipc.send<any>('get_nft_mint_status', {
+      nftId: nft.value?.id,
+    });
+    nftStatusPollCounter.value += 1;
+    if (data?.transaction?.confirmed) {
+      progress.value = 'done';
+      clearInterval(pollForMintingStatusInterval);
+    } else if (nftStatusPollCounter.value > 120 / 5) {
+      progress.value = 'error';
+      someError.value = {
+        stage: 'pending',
+        error: "Couldn't detect NFT after 2 minutes of waiting. Please check an NFT explorer.",
+      };
+      clearInterval(pollForMintingStatusInterval);
+    }
+  };
+
+  await polling();
+  pollForMintingStatusInterval = setInterval(polling, 5000);
 };
 
 const getProgressWidth = () => {
@@ -239,6 +270,7 @@ const getProgressWidth = () => {
     case 'done':
       return '100%';
     case 'minting':
+    case 'pending':
       return '62.5%';
     case 'uploading':
       return '37.5%';
@@ -603,13 +635,21 @@ const openFilePicker = () => {
       <p class="text-sm font-medium text-gray-900">
         <span v-if="progress !== 'done'">Minting your NFT...</span><span v-else>Your NFT has been minted!</span>
       </p>
-      <p v-if="progress === 'done'" class="mt-1 text-sm text-gray-600 overflow-hidden overflow-ellipsis">
-        It can take a minute to be added to the blockchain. <br />You can find it here:
-        <a
-          class="font-semibold text-emerald-600"
-          href="#"
-          @click.prevent="shell.openExternal(`https://mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
-          >https://mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
+      <p
+        v-if="progress === 'pending' || progress === 'done'"
+        class="mt-1 text-sm text-gray-600 overflow-hidden overflow-ellipsis"
+      >
+        <span v-if="progress === 'pending'"
+          >The transaction has been submitted, it will take a minute to be confirmed on the blockchain.
+        </span>
+        <span v-else
+          >You can find it here:
+          <a
+            class="font-semibold text-emerald-600"
+            href="#"
+            @click.prevent="shell.openExternal(`https://mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
+            >https://mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
+          ></span
         >
       </p>
       <div class="mt-6" aria-hidden="true">
@@ -633,9 +673,9 @@ const openFilePicker = () => {
           <div
             class="text-center"
             :class="
-              someError?.stage === 'minting'
+              someError?.stage === 'minting' || someError?.stage === 'pending'
                 ? 'text-red-600'
-                : progress === 'minting' || progress === 'done'
+                : progress === 'minting' || progress === 'pending' || progress === 'done'
                 ? 'text-emerald-600'
                 : ''
             "
