@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { CollectionIcon, PlusIcon, TrashIcon } from '@heroicons/vue/outline';
+import { CheckCircleIcon, PlusIcon, TrashIcon } from '@heroicons/vue/outline';
 import { Collection, store } from '../../state/store';
 import { useRoute, useRouter } from 'vue-router';
 import { reactive, ref } from 'vue';
-import { CheckCircleIcon } from '@heroicons/vue/outline';
 import { XIcon } from '@heroicons/vue/solid';
+import { watchDebounced } from '@vueuse/core';
+import { IpcService } from '../../helpers/ipc-service';
+
+const ipc = new IpcService();
 
 const showSuccessNotification = ref(false);
 
@@ -38,6 +41,27 @@ if (route.params.id === 'new') {
     Object.assign(collection, existingCollection);
   }
 }
+
+const licenseError = ref<string | undefined>(undefined);
+watchDebounced(
+  () => collection.licenseUrl,
+  async (licenseUrl) => {
+    if (licenseUrl && licenseUrl.startsWith('http')) {
+      try {
+        const { licenseHash } = await ipc.send('fetch_license', { licenseUrl });
+        collection.licenseHash = licenseHash;
+        licenseError.value = undefined;
+        return;
+      } catch (error: any) {
+        licenseError.value = error.error?.message;
+      }
+    } else {
+      licenseError.value = undefined;
+    }
+    collection.licenseHash = undefined;
+  },
+  { debounce: 500, maxWait: 1000 }
+);
 
 const newAttributeName = ref('');
 const addAttribute = () => {
@@ -125,7 +149,7 @@ const deleteCollection = () => {
             </div>
 
             <div>
-              <label for="description" class="block text-sm font-medium text-gray-700"> Attributes (optional) </label>
+              <label for="description" class="block text-sm font-medium text-gray-700"> Attributes </label>
               <div class="flex mt-3" v-for="attribute in collection.attributes">
                 <div class="flex-grow">
                   <input
@@ -169,6 +193,35 @@ const deleteCollection = () => {
                   </button>
                 </span>
               </form>
+            </div>
+            <div>
+              <label for="website" class="block text-sm font-medium text-gray-700"> License URL </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  v-model="collection.licenseUrl"
+                  name="licenseUrl"
+                  id="licenseUrl"
+                  autocomplete="licenseUrl"
+                  class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
+                />
+              </div>
+              <p v-if="licenseError" class="mt-2 text-sm text-red-600" id="license-error">{{ licenseError }}</p>
+            </div>
+            <div>
+              <label for="website" class="block text-sm font-medium text-gray-700"> License Hash </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  disabled
+                  v-model="collection.licenseHash"
+                  name="licenseHash"
+                  id="licenseHash"
+                  autocomplete="licenseHash"
+                  placeholder="Will be calculated automatically"
+                  class="shadow-sm cursor-not-allowed bg-gray-100 block w-full rounded-md sm:text-sm border-gray-300"
+                />
+              </div>
             </div>
             <div>
               <label for="twitterHandle" class="block text-sm font-medium text-gray-700"> Twitter Handle </label>

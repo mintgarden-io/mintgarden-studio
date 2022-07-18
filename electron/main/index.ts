@@ -7,6 +7,12 @@ import Store from 'electron-store';
 import * as fs from 'fs';
 import { SmartCoin } from 'greenwebjs';
 import { bech32m } from 'bech32';
+import axios from 'axios';
+import crypto from 'crypto';
+
+const axiosHttp = axios.create({
+  adapter: require('axios/lib/adapters/http'),
+});
 
 // setLogLevel('debug');
 
@@ -266,6 +272,21 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
   } catch (error) {
     console.log('Failed to mint NFT', error);
     event.sender.send(responseChannel, { error });
+  }
+});
+
+ipcMain.on('fetch_license', async (event, { responseChannel, ...args }) => {
+  try {
+    const { data } = await axiosHttp.get(args.licenseUrl, { responseType: 'arraybuffer' });
+    const hash = crypto.createHash('sha256').update(data).digest('hex');
+    event.sender.send(responseChannel, { licenseHash: hash });
+  } catch (error: any) {
+    console.log('Failed to calculate license hash', error);
+    let errorMessage = error.message;
+    if (error.response?.statusText) {
+      errorMessage = `${error.response.status}: ${error.response.statusText}`;
+    }
+    event.sender.send(responseChannel, { error: new Error(errorMessage) });
   }
 });
 

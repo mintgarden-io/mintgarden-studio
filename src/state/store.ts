@@ -9,6 +9,8 @@ export interface Collection {
   bannerUrl?: string;
   twitterHandle?: string;
   website?: string;
+  licenseUrl?: string;
+  licenseHash?: string;
   attributes: { name: string }[];
 }
 
