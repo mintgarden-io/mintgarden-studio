@@ -252,6 +252,8 @@ ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
       hash: args.dataHash,
       meta_uris: args.metadataUris,
       meta_hash: args.metadataHash,
+      license_uris: args.licenseUrl ? [args.licenseUrl] : undefined,
+      license_hash: args.licenseHash,
       did_id: args.did.didId,
       royalty_percentage: args.royaltyPercentage * 100,
     });

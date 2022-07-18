@@ -9,6 +9,7 @@ import { NftStorageUploader } from '../helpers/nft-storage';
 import { chiaState } from '../state/chia';
 import { shell } from 'electron';
 import { Collection, store } from '../state/store';
+import { watchDebounced } from '@vueuse/core';
 
 const ipc = new IpcService();
 
@@ -20,11 +21,23 @@ const initialMetadata = {
   description: '',
   attributes: [],
 };
-const initialOnChainMetadata = { royaltyPercentage: 0, targetAddress: undefined, royaltyAddress: undefined };
+const initialOnChainMetadata = {
+  royaltyPercentage: 0,
+  targetAddress: undefined,
+  royaltyAddress: undefined,
+  licenseUrl: undefined,
+  licenseHash: undefined,
+};
 
 const currentFile = ref<any>(undefined);
 const metadata = reactive(JSON.parse(JSON.stringify(initialMetadata)));
-const onChainMetadata = reactive({ ...initialOnChainMetadata });
+const onChainMetadata = reactive<{
+  royaltyPercentage: number;
+  targetAddress?: string;
+  royaltyAddress?: string;
+  licenseUrl?: string;
+  licenseHash?: string;
+}>({ ...initialOnChainMetadata });
 const fee = ref(0);
 const confirmLegal = ref(false);
 
@@ -64,6 +77,44 @@ watch(
       getDids();
     }
   }
+);
+
+const licenseFromCollection = ref(false);
+watch(selectedCollection, (value) => {
+  if (value?.licenseUrl && value?.licenseHash) {
+    onChainMetadata.licenseUrl = value.licenseUrl;
+    onChainMetadata.licenseHash = value.licenseHash;
+    licenseFromCollection.value = true;
+  } else {
+    onChainMetadata.licenseUrl = undefined;
+    onChainMetadata.licenseHash = undefined;
+    licenseFromCollection.value = false;
+  }
+});
+
+const licenseError = ref<string | undefined>(undefined);
+watchDebounced(
+  () => onChainMetadata.licenseUrl,
+  async (licenseUrl) => {
+    if (licenseFromCollection.value) {
+      return;
+    }
+
+    if (licenseUrl && licenseUrl.startsWith('http')) {
+      try {
+        const { licenseHash } = await ipc.send('fetch_license', { licenseUrl });
+        onChainMetadata.licenseHash = licenseHash;
+        licenseError.value = undefined;
+        return;
+      } catch (error: any) {
+        licenseError.value = error.error?.message;
+      }
+    } else {
+      licenseError.value = undefined;
+    }
+    onChainMetadata.licenseHash = undefined;
+  },
+  { debounce: 500 }
 );
 
 const clearNftDetails = () => {
@@ -388,6 +439,38 @@ const openFilePicker = () => {
                   name="description"
                   rows="5"
                   class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full sm:text-sm border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label for="website" class="block text-sm font-medium text-gray-700"> License URL </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  v-model="onChainMetadata.licenseUrl"
+                  name="licenseUrl"
+                  id="licenseUrl"
+                  autocomplete="licenseUrl"
+                  :disabled="licenseFromCollection"
+                  :class="licenseFromCollection ? 'cursor-not-allowed bg-gray-100' : ''"
+                  class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
+                />
+              </div>
+              <p v-if="licenseError" class="mt-2 text-sm text-red-600" id="license-error">{{ licenseError }}</p>
+            </div>
+            <div>
+              <label for="website" class="block text-sm font-medium text-gray-700"> License Hash </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  disabled
+                  v-model="onChainMetadata.licenseHash"
+                  name="licenseHash"
+                  id="licenseHash"
+                  autocomplete="licenseHash"
+                  placeholder="Will be calculated automatically"
+                  class="shadow-sm cursor-not-allowed bg-gray-100 block w-full rounded-md sm:text-sm border-gray-300"
                 />
               </div>
             </div>
