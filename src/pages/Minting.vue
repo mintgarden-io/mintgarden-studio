@@ -261,7 +261,7 @@ const openFilePicker = () => {
         <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
           <div class="col-span-6 xl:col-span-3 space-y-6">
             <div>
-              <Listbox as="div" v-model="selectedDid">
+              <Listbox as="div" v-model="selectedDid" :disabled="dids.length === 0">
                 <ListboxLabel class="block text-sm font-medium text-gray-700"> Creator</ListboxLabel>
                 <div class="mt-1 relative">
                   <ListboxButton
@@ -272,7 +272,7 @@ const openFilePicker = () => {
                       <span class="ml-3 block truncate">{{ selectedDid.name }}</span>
                     </span>
                     <span v-else class="flex items-center">
-                      <span class="ml-3 block truncate">No DID</span>
+                      <span class="block truncate">No profile available - Create it in the Chia app</span>
                     </span>
                     <span class="ml-3 absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                       <SelectorIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
