@@ -148,23 +148,17 @@ const login = async (fingerprint: string) => {
           </div>
           <div class="flex-shrink-0 flex border-t border-gray-200 p-4">
             <Menu as="div" class="relative inline-block text-left">
-              <div v-if="chiaState.syncStatus" class="flex items-center mb-4 gap-3">
+              <div class="flex items-center mb-4 gap-3">
                 <div class="flex h-9 w-9 items-center justify-center">
                   <span class="flex h-3 w-3">
                     <span
                       class="relative inline-flex rounded-full h-3 w-3"
-                      :class="
-                        chiaState.syncStatus.synced
-                          ? 'bg-emerald-500'
-                          : chiaState.syncStatus.syncing
-                          ? 'bg-orange-500'
-                          : 'bg-red-500'
-                      "
+                      :class="chiaState.synced ? 'bg-emerald-500' : chiaState.syncing ? 'bg-orange-500' : 'bg-red-500'"
                     ></span>
                   </span>
                 </div>
                 <span class="text-gray-900 text-sm">
-                  {{ chiaState.syncStatus.synced ? 'Synced' : chiaState.syncStatus.syncing ? 'Syncing' : 'Not synced' }}
+                  {{ chiaState.synced ? 'Synced' : chiaState.syncing ? 'Syncing' : 'Not synced' }}
                 </span>
               </div>
               <div>
