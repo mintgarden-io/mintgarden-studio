@@ -2,7 +2,7 @@
  * @see https://www.electron.build/configuration/configuration
  */
 {
-  "appId": "io.mintgarden.studiom",
+  "appId": "io.mintgarden.studio",
   productName: "MintGarden Studio",
   "asar": true,
   "directories": {
@@ -11,7 +11,9 @@
   "files": [
     "dist"
   ],
+  "afterSign": "electron-builder-notarize",
   "mac": {
+    "hardenedRuntime": true,
     "artifactName": "${productName}_${version}.${ext}",
     "target": [
       "dmg"
