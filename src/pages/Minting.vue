@@ -7,9 +7,9 @@ import DropZone from '../components/DropZone.vue';
 import { IpcService } from '../helpers/ipc-service';
 import { NftStorageUploader } from '../helpers/nft-storage';
 import { chiaState } from '../state/chia';
-import { shell } from 'electron';
 import { Collection, store } from '../state/store';
 import { watchDebounced } from '@vueuse/core';
+import { openNftOnMintGarden } from '../helpers/open-external';
 
 const ipc = new IpcService();
 
@@ -644,10 +644,7 @@ const openFilePicker = () => {
         </span>
         <span v-else
           >You can find it here:
-          <a
-            class="font-semibold text-emerald-600"
-            href="#"
-            @click.prevent="shell.openExternal(`https://mintgarden.io/nfts${nft ? `/${nft.encodedId}` : ''}`)"
+          <a class="font-semibold text-emerald-600" href="#" @click.prevent="openNftOnMintGarden(nft)"
             >https://mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
           ></span
         >

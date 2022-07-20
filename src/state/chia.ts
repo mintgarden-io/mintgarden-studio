@@ -4,4 +4,5 @@ export const chiaState = reactive<{
   activeFingerprint: string | undefined;
   synced: boolean;
   syncing: boolean;
-}>({ activeFingerprint: undefined, synced: false, syncing: false });
+  networkName: string;
+}>({ activeFingerprint: undefined, synced: false, syncing: false, networkName: '' });

@@ -37,10 +37,12 @@ watchEffect(() => {
 const ipc = new IpcService();
 
 const getSyncStatus = async () => {
-  const { synced, syncing } = await ipc.send('get_sync_status');
+  const { synced, syncing, network_name } = await ipc.send('get_sync_status');
   chiaState.synced = synced;
   chiaState.syncing = syncing;
+  chiaState.networkName = network_name;
 };
+
 const getFingerprints = async () => {
   const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
   fingerprints.value = response.fingerprints;

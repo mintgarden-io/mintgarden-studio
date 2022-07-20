@@ -164,7 +164,8 @@ ipcMain.on('get_sync_status', async (event, { responseChannel, ...args }) => {
   try {
     const agent = getChiaAgent();
     const response = await agent.sendMessage<any>('wallet', 'get_sync_status');
-    event.sender.send(responseChannel, response);
+    const networkInfoResponse = await agent.sendMessage<any>('wallet', 'get_network_info');
+    event.sender.send(responseChannel, { ...response, ...networkInfoResponse });
   } catch (error) {
     console.log(error);
     event.sender.send(responseChannel, { error });
@@ -235,21 +236,11 @@ ipcMain.on('get_dids', async (event, { responseChannel }) => {
   }
 });
 
-ipcMain.on('get_nfts', async (event, { responseChannel }) => {
-  const nfts = [];
+ipcMain.on('get_nfts_for_did', async (event, { responseChannel, ...args }) => {
   try {
-    const agent = getChiaAgent();
-    const response = await agent.sendMessage<any>('wallet', 'get_wallets', {
-      type: 10,
-    });
-    for (const wallet of response.wallets) {
-      console.log(wallet);
-      const response = await agent.sendMessage<any>('wallet', 'nft_get_nfts', {
-        wallet_id: wallet.id,
-      });
-      nfts.push({ name: wallet.name, didId: response.my_did, coinId: response.coin_id });
-    }
-    event.sender.send(responseChannel, { nfts });
+    let url1 = `https://api.testnet.mintgarden.io/profile/${args.did}/nfts?type=created`;
+    const { data } = await axiosHttp.get(url1);
+    event.sender.send(responseChannel, { nfts: data.items });
   } catch (error) {
     console.log(error);
   }
