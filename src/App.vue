@@ -6,6 +6,7 @@ import { toSvg } from 'jdenticon';
 import { chiaState } from './state/chia';
 import { IpcService } from './helpers/ipc-service';
 import { useRouter } from 'vue-router';
+import { useIntervalFn } from '@vueuse/core';
 
 const router = useRouter();
 onMounted(() => {
@@ -27,31 +28,49 @@ const svgString = ref('');
 watchEffect(() => {
   if (chiaState.activeFingerprint) {
     svgString.value = toSvg(chiaState.activeFingerprint, 36);
+  } else {
+    svgString.value = '';
   }
 });
 
 const ipc = new IpcService();
 
-let syncPollInterval = undefined;
+const getSyncStatus = async () => {
+  const { synced, syncing } = await ipc.send('get_sync_status');
+  chiaState.synced = synced;
+  chiaState.syncing = syncing;
+};
+const getFingerprints = async () => {
+  const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
+  fingerprints.value = response.fingerprints;
+  chiaState.activeFingerprint = response.fingerprint;
+};
+
 const init = async () => {
   try {
-    const { synced, syncing } = await ipc.send('get_sync_status');
-    chiaState.synced = synced;
-    chiaState.syncing = syncing;
-
-    syncPollInterval = setInterval(async () => {
-      const { synced, syncing } = await ipc.send('get_sync_status');
-      chiaState.synced = synced;
-      chiaState.syncing = syncing;
-    }, 5000);
-
-    const response = await ipc.send<{ fingerprints: string[]; fingerprint: string }>('get_public_keys');
-    fingerprints.value = response.fingerprints;
-    chiaState.activeFingerprint = response.fingerprint;
+    await getSyncStatus();
+    await getFingerprints();
   } catch (e) {
     loginError.value = e;
   }
   loginInProgress.value = false;
+
+  useIntervalFn(async () => {
+    try {
+      await getSyncStatus();
+
+      if (loginError.value) {
+        loginError.value = undefined;
+        await getFingerprints();
+      }
+    } catch (e) {
+      loginError.value = e;
+      chiaState.synced = false;
+      chiaState.syncing = false;
+      fingerprints.value = [];
+      chiaState.activeFingerprint = undefined;
+    }
+  }, 5000);
 };
 init();
 
@@ -168,9 +187,14 @@ const login = async (fingerprint: string) => {
                     <div v-html="svgString"></div>
                     <div class="ml-3">
                       <p class="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                        {{ chiaState.activeFingerprint }}
+                        {{ chiaState.activeFingerprint || 'Wallet Disconnected' }}
                       </p>
-                      <p class="text-xs text-left font-medium text-gray-500 group-hover:text-gray-700">Change key</p>
+                      <p
+                        v-if="fingerprints?.length > 0"
+                        class="text-xs text-left font-medium text-gray-500 group-hover:text-gray-700"
+                      >
+                        Change key
+                      </p>
                     </div>
                   </div>
                 </MenuButton>

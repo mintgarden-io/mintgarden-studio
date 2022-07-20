@@ -2,6 +2,7 @@
 import { IpcService } from '../helpers/ipc-service';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { XCircleIcon } from '@heroicons/vue/solid';
 
 const router = useRouter();
 const ipc = new IpcService();
@@ -17,7 +18,11 @@ const init = async () => {
     console.log('push minting');
     await router.push('minting');
   } catch (e: any) {
-    connectionError.value = e;
+    if (e?.error) {
+      connectionError.value = e.error;
+    } else {
+      connectionError.value = e;
+    }
     chiaRoot.value = e.data.chiaRoot;
   }
 };
@@ -35,8 +40,19 @@ const setChiaRoot = async (event: any) => {
       <h3 class="text-3xl leading-6 font-medium text-gray-900">Set up</h3>
     </div>
     <div v-if="connectionError" class="flex flex-col gap-4">
-      <p>Failed to connect to your Chia wallet: <br />{{ connectionError }}</p>
-      <p>Please make sure the wallet is running and the CHIA_ROOT is set correctly, then restart this application.</p>
+      <div class="rounded-md bg-red-50 p-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <XCircleIcon class="h-5 w-5 text-red-400" aria-hidden="true" />
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Failed to connect to your Chia wallet.</h3>
+            <div class="mt-2 text-sm text-red-700">
+              <p>Please make sure the wallet is running and the CHIA_ROOT is set correctly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <form v-if="connectionError" class="flex flex-col gap-4" @submit="setChiaRoot">
       <div>
@@ -57,7 +73,7 @@ const setChiaRoot = async (event: any) => {
           type="submit"
           class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700"
         >
-          Update Chia Root
+          Reload
         </button>
       </div>
     </form>
