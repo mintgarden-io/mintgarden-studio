@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import * as VueRouter from 'vue-router';
 import App from './App.vue';
+import MyNfts from './pages/MyNfts.vue';
 import Setup from './pages/Setup.vue';
 import Minting from './pages/Minting.vue';
 import BulkMinting from './pages/BulkMinting.vue';
@@ -26,6 +27,7 @@ const routes = [
     component: Minting,
     beforeEnter: [testConnection],
   },
+  { path: '/nfts', component: MyNfts },
   { path: '/collections', component: CollectionList },
   { path: '/collections/:id', component: CollectionDetails },
   { path: '/bulk-minting', component: BulkMinting, beforeEnter: [testConnection] },

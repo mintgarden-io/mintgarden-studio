@@ -235,6 +235,26 @@ ipcMain.on('get_dids', async (event, { responseChannel }) => {
   }
 });
 
+ipcMain.on('get_nfts', async (event, { responseChannel }) => {
+  const nfts = [];
+  try {
+    const agent = getChiaAgent();
+    const response = await agent.sendMessage<any>('wallet', 'get_wallets', {
+      type: 10,
+    });
+    for (const wallet of response.wallets) {
+      console.log(wallet);
+      const response = await agent.sendMessage<any>('wallet', 'nft_get_nfts', {
+        wallet_id: wallet.id,
+      });
+      nfts.push({ name: wallet.name, didId: response.my_did, coinId: response.coin_id });
+    }
+    event.sender.send(responseChannel, { nfts });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
 ipcMain.on('mint_nft', async (event, { responseChannel, ...args }) => {
   try {
     const agent = getChiaAgent();

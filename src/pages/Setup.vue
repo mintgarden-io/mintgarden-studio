@@ -15,8 +15,7 @@ const init = async () => {
   chiaRoot.value = undefined;
   try {
     await ipc.send('connect');
-    console.log('push minting');
-    await router.push('minting');
+    await router.push('nfts');
   } catch (e: any) {
     if (e?.error) {
       connectionError.value = e.error;

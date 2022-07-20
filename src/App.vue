@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watchEffect } from 'vue';
-import { CogIcon, CollectionIcon, SparklesIcon } from '@heroicons/vue/outline';
+import { CogIcon, CollectionIcon, SparklesIcon, ViewGridIcon } from '@heroicons/vue/outline';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import { toSvg } from 'jdenticon';
 import { chiaState } from './state/chia';
@@ -14,6 +14,7 @@ onMounted(() => {
 });
 
 const navigation = [
+  { name: 'My NFTs', to: '/nfts', icon: ViewGridIcon },
   { name: 'My Collections', to: '/collections', icon: CollectionIcon },
   { name: 'Single Mint', to: '/minting', icon: SparklesIcon },
   // { name: 'Bulk Mint (soon)', to: '/bulk', icon: CollectionIcon },
