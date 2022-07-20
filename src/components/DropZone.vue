@@ -10,6 +10,7 @@ const emit = defineEmits(['update:modelValue']);
 const active = ref(false);
 
 const drop = async (e: any) => {
+  active.value = false;
   const file = e.dataTransfer.files[0];
   loadFile(file);
 };
@@ -41,7 +42,7 @@ const loadFile = (file: File) => {
     @dragenter.prevent="active = true"
     @dragleave.prevent="active = false"
     @dragover.prevent
-    @drop.prevent="active = false"
+    @drop.prevent="drop"
     :class="[active ? 'border-gray-400' : 'border-gray-300']"
     class="cursor-pointer relative block w-full border-2 border-dashed rounded-lg p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
   >
