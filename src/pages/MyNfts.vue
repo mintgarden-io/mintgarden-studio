@@ -1,25 +1,38 @@
 <script setup lang="ts">
 import { ViewGridIcon, SparklesIcon } from '@heroicons/vue/outline';
 import { IpcService } from '../helpers/ipc-service';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { openNftOnMintGarden } from '../helpers/open-external';
+import { chiaState } from '../state/chia';
 
 const ipc = new IpcService();
 
-const nfts = ref([]);
+const nfts = ref<any[]>([]);
 const getNfts = async () => {
   const { dids } = await ipc.send<any>('get_dids');
 
-  nfts.value = [];
+  const myNfts = [];
   for (const did of dids) {
     const { nfts: newNfts } = await ipc.send<any>('get_nfts_for_did', { did: did.didId });
     if (newNfts) {
-      nfts.value = [...nfts.value, ...newNfts];
+      myNfts.push(...newNfts);
     }
-    console.log(newNfts);
   }
+  nfts.value = myNfts;
 };
 getNfts();
+
+watch(
+  () => ({ ...chiaState }),
+  (value, oldValue) => {
+    if (oldValue.activeFingerprint !== value.activeFingerprint) {
+      getNfts();
+    }
+    if (!oldValue.synced && value.synced) {
+      getNfts();
+    }
+  }
+);
 </script>
 <template>
   <div class="p-8 w-full xl:max-w-7xl space-y-8">
