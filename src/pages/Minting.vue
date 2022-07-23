@@ -675,7 +675,7 @@ const openFilePicker = () => {
         <span v-else
           >You can find it here:
           <a class="font-semibold text-emerald-600" href="#" @click.prevent="openNftOnMintGarden(nft)"
-            >https://mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
+            >https://{{ isTestnet ? 'testnet.' : '' }}mintgarden.io/nfts{{ nft ? `/${nft.encodedId}` : '' }}</a
           ></span
         >
       </p>
