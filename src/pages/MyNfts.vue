@@ -62,22 +62,22 @@ watch(
                         <div class="flex items-center">
                           <div class="h-10 w-10 flex-shrink-0 flex items-center justify-center">
                             <img
-                              v-if="nft.data?.thumbnail_uri"
+                              v-if="nft.thumbnail_uri"
                               class="h-10 w-10 rounded-md"
-                              :src="nft.data?.thumbnail_uri"
+                              :src="nft.thumbnail_uri"
                               alt=""
                             />
                             <ViewGridIcon v-else class="h-6 w-6 text-gray-500" alt="" />
                           </div>
                           <div class="ml-4">
                             <div class="font-medium text-gray-900">
-                              {{ nft.data?.metadata_json?.name || 'Unnamed' }}
+                              {{ nft.name || 'Unnamed' }}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td class="px-3 py-4 text-sm text-gray-500">
-                        <div class="text-gray-900">{{ nft.data?.metadata_json?.description }}</div>
+                        <div class="text-gray-900">{{ nft.description }}</div>
                       </td>
                     </tr>
                   </template>
