@@ -13,6 +13,8 @@ import { openNftOnMintGarden } from '../helpers/open-external';
 
 const ipc = new IpcService();
 
+const isTestnet = chiaState.networkName !== 'mainnet';
+
 const initialMetadata = {
   format: 'CHIP-0007',
   minting_tool: 'mintgarden-studio',
@@ -38,7 +40,7 @@ const onChainMetadata = reactive<{
   licenseUrl?: string;
   licenseHash?: string;
 }>({ ...initialOnChainMetadata });
-const fee = ref(0);
+const blockchainFee = ref(0);
 const confirmLegal = ref(false);
 
 const dropzone = ref();
@@ -234,7 +236,12 @@ const uploadToNftStorage = async () => {
 
 const mintNft = async (urisAndHashes: any): Promise<any> => {
   progress.value = 'minting';
-  return await ipc.send('mint_nft', { ...urisAndHashes, ...onChainMetadata, did: { ...selectedDid.value } });
+  return await ipc.send('mint_nft', {
+    ...urisAndHashes,
+    ...onChainMetadata,
+    did: { ...selectedDid.value },
+    feeInXch: blockchainFee.value,
+  });
 };
 
 let pollForMintingStatusInterval: NodeJS.Timer | undefined = undefined;
@@ -549,28 +556,51 @@ const openFilePicker = () => {
             </div>
           </div>
 
-          <div class="col-span-6 xl:col-span-3">
-            <label for="image" class="block text-sm font-medium text-gray-700"> Image </label>
-            <div
-              v-if="currentFile"
-              :class="[
-                isHovering ? 'border-emerald-500' : 'border-gray-300',
-                'cursor-pointer mt-1 flex justify-center border-2 rounded-md',
-              ]"
-            >
-              <img @click="openFilePicker()" :src="currentFile.objectUrl" class="" />
-            </div>
-            <div :class="currentFile ? 'hidden' : ''">
-              <DropZone ref="dropzone" v-model="currentFile" />
-            </div>
-            <div v-if="currentFile" class="flex-grow flex justify-end items-center space-x-4">
-              <button
-                @click="currentFile = undefined"
-                type="button"
-                class="bg-white rounded-md text-sm text-emerald-600 hover:text-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+          <div class="col-span-6 xl:col-span-3 space-y-6">
+            <div>
+              <label for="image" class="block text-sm font-medium text-gray-700"> Image </label>
+              <div
+                v-if="currentFile"
+                :class="[
+                  isHovering ? 'border-emerald-500' : 'border-gray-300',
+                  'cursor-pointer mt-1 flex justify-center border-2 rounded-md',
+                ]"
               >
-                Remove
-              </button>
+                <img @click="openFilePicker()" :src="currentFile.objectUrl" class="" />
+              </div>
+              <div :class="currentFile ? 'hidden' : ''">
+                <DropZone ref="dropzone" v-model="currentFile" accept="image/*" />
+              </div>
+              <div v-if="currentFile" class="flex-grow flex justify-end items-center space-x-4">
+                <button
+                  @click="currentFile = undefined"
+                  type="button"
+                  class="bg-white rounded-md text-sm text-emerald-600 hover:text-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700"> Blockchain fee </label>
+              <div class="relative mt-1">
+                <input
+                  type="number"
+                  step="any"
+                  v-model="blockchainFee"
+                  name="blockchainFee"
+                  id="blockchainFee"
+                  min="0"
+                  max="0.1"
+                  class="shadow-sm focus:ring-emerald-500 focus:border-emerald-500 block w-full rounded-md sm:text-sm border-gray-300"
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm" id="price-currency"> {{ isTestnet ? 'TXCH' : 'XCH' }} </span>
+                </div>
+              </div>
+              <p class="mt-2 text-sm text-gray-500">
+                Use {{ 615_000_000 / 10 ** 12 }} if mempool is full, 0 otherwise.
+              </p>
             </div>
           </div>
           <div class="col-span-6">
@@ -700,3 +730,15 @@ const openFilePicker = () => {
     </div>
   </form>
 </template>
+
+<style>
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+</style>
