@@ -18,6 +18,6 @@
 
 # Usage
 
-Download the latest release from [Releases}(https://github.com/mintgarden-io/mintgarden-studio/releases).
+Download the latest release from [Releases](https://github.com/mintgarden-io/mintgarden-studio/releases).
 
 You need a running Chia wallet with version 1.4.0 or newer to mint NFTs using the MintGarden Studio.
