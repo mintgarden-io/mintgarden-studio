@@ -53,6 +53,7 @@
     "axios": "^0.27.2",
     "chia-agent": "^6.0.0",
     "electron-store": "^8.0.2",
+    "electron-updater": "^5.2.1",
     "greenwebjs": "^1.1.6"
   }
 }

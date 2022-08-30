@@ -9,12 +9,15 @@ import { SmartCoin } from 'greenwebjs';
 import { bech32m } from 'bech32';
 import axios from 'axios';
 import crypto from 'crypto';
+import AppUpdater from './app-updater';
 
 const axiosHttp = axios.create({
   adapter: require('axios/lib/adapters/http'),
 });
 
 // setLogLevel('debug');
+
+const appUpdater = new AppUpdater();
 
 const store = new Store<{ CHIA_ROOT: string }>({ defaults: { CHIA_ROOT: chiaRoot } });
 
@@ -65,6 +68,8 @@ async function createWindow() {
     if (url.startsWith('https:')) shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  appUpdater.checkForUpdatesAndNotify();
 }
 
 app.whenReady().then(createWindow);
