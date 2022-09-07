@@ -63,17 +63,17 @@ watchDebounced(
   { debounce: 500 }
 );
 
-const newAttributeName = ref('');
+const newAttributeTraitType = ref('');
 const addAttribute = () => {
-  const existingName = collection.attributes.find(({ name }) => name === newAttributeName.value);
-  if (!existingName) {
-    collection.attributes.push({ name: newAttributeName.value });
-    newAttributeName.value = '';
+  const existingTraitType = collection.attributes.find(({ trait_type }) => trait_type === newAttributeTraitType.value);
+  if (!existingTraitType) {
+    collection.attributes.push({ trait_type: newAttributeTraitType.value });
+    newAttributeTraitType.value = '';
   }
 };
 
-const deleteAttribute = (nameToDelete: string) => {
-  const existingAttributeIndex = collection.attributes.findIndex(({ name }) => name === nameToDelete);
+const deleteAttribute = (traitTypeToDelete: string) => {
+  const existingAttributeIndex = collection.attributes.findIndex(({ trait_type }) => trait_type === traitTypeToDelete);
   if (existingAttributeIndex >= 0) {
     collection.attributes.splice(existingAttributeIndex, 1);
   }
@@ -154,17 +154,17 @@ const deleteCollection = () => {
                 <div class="flex-grow">
                   <input
                     type="text"
-                    :value="attribute.name"
+                    :value="attribute.trait_type"
                     disabled
-                    name="attribute-name"
-                    id="attribute-name"
+                    name="attribute-trait_type"
+                    id="attribute-trait_type"
                     class="corsor-not-allowed bg-gray-100 block w-full shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
                 <span class="ml-3">
                   <button
                     type="button"
-                    @click="deleteAttribute(attribute.name)"
+                    @click="deleteAttribute(attribute.trait_type)"
                     class="bg-white inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
                   >
                     <TrashIcon class="-ml-2 mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -176,9 +176,9 @@ const deleteCollection = () => {
                 <div class="flex-grow">
                   <input
                     type="text"
-                    v-model="newAttributeName"
-                    name="new-attribute-name"
-                    id="new-attribute-name"
+                    v-model="newAttributeTraitType"
+                    name="new-attribute-trait_type"
+                    id="new-attribute-trait_type"
                     class="block w-full shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300 rounded-md"
                     placeholder="Attribute name"
                   />

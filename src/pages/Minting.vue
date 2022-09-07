@@ -141,10 +141,10 @@ const isMintingEnabled = computed(() => {
   return confirmLegal.value && (!progress.value || progress.value === 'done' || someError.value);
 });
 
-const setAttributeValue = (name: string, e) => {
+const setAttributeValue = (trait_type: string, e) => {
   const value = e.target.value;
 
-  const existingAttributeIndex = metadata.attributes.findIndex((attribute: any) => attribute.name === name);
+  const existingAttributeIndex = metadata.attributes.findIndex((attribute: any) => attribute.trait_type === trait_type);
   if (existingAttributeIndex >= 0) {
     if (value) {
       metadata.attributes[existingAttributeIndex].value = value;
@@ -152,7 +152,7 @@ const setAttributeValue = (name: string, e) => {
       metadata.attributes.splice(existingAttributeIndex, 1);
     }
   } else {
-    metadata.attributes.push({ name, value: e.target.value });
+    metadata.attributes.push({ trait_type, value: e.target.value });
   }
 };
 
@@ -521,13 +521,13 @@ const openFilePicker = () => {
                   <span
                     class="min-w-[8rem] inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
                   >
-                    {{ attribute.name }}
+                    {{ attribute.trait_type }}
                   </span>
                   <input
                     type="text"
-                    @change="setAttributeValue(attribute.name, $event)"
-                    :name="`${attribute.name}-value`"
-                    :id="`${attribute.name}-value`"
+                    @change="setAttributeValue(attribute.trait_type, $event)"
+                    :name="`${attribute.trait_type}-value`"
+                    :id="`${attribute.trait_type}-value`"
                     class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm border-gray-300"
                   />
                 </div>
