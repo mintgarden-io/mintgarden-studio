@@ -243,7 +243,7 @@ ipcMain.on('get_dids', async (event, { responseChannel }) => {
 
 ipcMain.on('get_nfts_for_did', async (event, { responseChannel, ...args }) => {
   try {
-    let url1 = `https://api.testnet.mintgarden.io/profile/${args.did}/nfts?type=created`;
+    let url1 = `https://api.${args.isTestnet ? 'testnet.' : ''}mintgarden.io/profile/${args.did}/nfts?type=created`;
     const { data } = await axiosHttp.get(url1);
     event.sender.send(responseChannel, { nfts: data.items });
   } catch (error) {

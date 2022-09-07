@@ -13,7 +13,8 @@ const getNfts = async () => {
 
   const myNfts = [];
   for (const did of dids) {
-    const { nfts: newNfts } = await ipc.send<any>('get_nfts_for_did', { did: did.didId });
+    const isTestnet = chiaState.networkName !== 'mainnet';
+    const { nfts: newNfts } = await ipc.send<any>('get_nfts_for_did', { did: did.didId, isTestnet });
     if (newNfts) {
       myNfts.push(...newNfts);
     }
