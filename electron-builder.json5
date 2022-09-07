@@ -16,7 +16,7 @@
     "hardenedRuntime": true,
     "artifactName": "${productName}_${version}.${ext}",
     "target": [
-      "dmg"
+      "default"
     ]
   },
   "win": {
