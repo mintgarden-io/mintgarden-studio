@@ -30,6 +30,7 @@ const initialOnChainMetadata = {
   licenseUrl: undefined,
   licenseHash: undefined,
 };
+const storageToken = ref<string | undefined>(undefined);
 
 const currentFile = ref<any>(undefined);
 const metadata = reactive(JSON.parse(JSON.stringify(initialMetadata)));
@@ -231,7 +232,10 @@ const uploadToNftStorage = async () => {
   }
 
   const nftStorageUploader = new NftStorageUploader();
-  return await nftStorageUploader.upload(currentFile.value, metadataToUpload);
+  const storageTokenResponse = await ipc.send<{ storageToken: string }>('get_storage_token');
+    storageToken.value = storageTokenResponse.storageToken;
+
+  return await nftStorageUploader.upload(currentFile.value, metadataToUpload, storageToken.value  );
 };
 
 const mintNft = async (urisAndHashes: any): Promise<any> => {

@@ -69,6 +69,12 @@ async function createWindow() {
     return { action: 'deny' };
   });
 
+  win.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault();
+    shell.openExternal(url);
+  });
+
+
   appUpdater.checkForUpdatesAndNotify();
 }
 
@@ -180,6 +186,16 @@ ipcMain.on('get_sync_status', async (event, { responseChannel, ...args }) => {
 ipcMain.on('set_chia_root', async (event, { responseChannel, ...args }) => {
   store.set('CHIA_ROOT', args.chiaRoot);
   event.sender.send(responseChannel, {});
+});
+
+ipcMain.on('set_storage_token', async (event, { responseChannel, ...args }) => {
+  store.set('STORAGE_TOKEN', args.storageToken);
+  event.sender.send(responseChannel, {});
+});
+
+ipcMain.on('get_storage_token', async (event, { responseChannel }) => {
+  const storageToken = store.get('STORAGE_TOKEN');
+  event.sender.send(responseChannel, { storageToken });
 });
 
 ipcMain.on('get_chia_root', async (event, { responseChannel }) => {
