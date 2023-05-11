@@ -1,10 +1,8 @@
 import crypto from 'crypto';
 import { File, NFTStorage } from 'nft.storage';
 
-const NFT_STORAGE_TOKEN = import.meta.env.VITE_NFT_STORAGE_TOKEN;
-
 export class NftStorageUploader {
-  async upload(file: { name: string; type: string; content: Buffer }, metadata: { [key: string]: any }) {
+  async upload(file: { name: string; type: string; content: Buffer }, metadata: { [key: string]: any }, NFT_STORAGE_TOKEN: string) {
     const dataFileName = file.name;
     const dataContent = file.content;
     const dataHash = crypto.createHash('sha256').update(dataContent).digest('hex');
